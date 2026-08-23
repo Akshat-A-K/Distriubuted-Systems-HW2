@@ -9,6 +9,8 @@
 #SBATCH --error=q4_%j.err
 #SBATCH --partition=debug
 
+set -euo pipefail
+
 module load hpcx-2.7.0/hpcx-ompi
 
 SUBMIT_DIR="${SLURM_SUBMIT_DIR:?}"

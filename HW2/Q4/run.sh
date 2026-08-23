@@ -34,8 +34,8 @@ EOF
 "$GEN_BIN" 100000 1000000 45 > build/large_max.txt
 
 if [[ -n "${SLURM_JOB_ID:-}" ]] && command -v srun >/dev/null 2>&1; then
-	MPI_RUNNER=(srun)
-	MPI_COUNT_FLAG="-n"
+	MPI_RUNNER=(mpirun)
+	MPI_COUNT_FLAG="-np"
 else
 	MPI_RUNNER=(mpirun)
 	MPI_COUNT_FLAG="-np"
