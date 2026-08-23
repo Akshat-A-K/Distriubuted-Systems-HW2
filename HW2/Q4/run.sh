@@ -4,10 +4,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-SEQ_BIN="build/triangle_seq"
-MPI_BIN="build/triangle_mpi"
-GEN_BIN="build/generate_graph"
-RESULTS_DIR="results"
+SEQ_BIN="$SCRIPT_DIR/build/triangle_seq"
+MPI_BIN="$SCRIPT_DIR/build/triangle_mpi"
+GEN_BIN="$SCRIPT_DIR/build/generate_graph"
+RESULTS_DIR="$SCRIPT_DIR/results"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 RESULT_FILE="$RESULTS_DIR/benchmark_$TIMESTAMP.csv"
 
@@ -20,7 +20,7 @@ if ! command -v make >/dev/null 2>&1; then
 fi
 make all
 
-cat > build/sample_q4.txt <<'EOF'
+cat > "$SCRIPT_DIR/build/sample_q4.txt" <<'EOF'
 4 5
 0 1
 1 2
@@ -28,10 +28,10 @@ cat > build/sample_q4.txt <<'EOF'
 2 3
 3 0
 EOF
-"$GEN_BIN" 3 3 42 > build/edge_case.txt
-"$GEN_BIN" 4 6 43 > build/small_k4.txt
-"$GEN_BIN" 500 5000 44 > build/medium_500.txt
-"$GEN_BIN" 100000 1000000 45 > build/large_max.txt
+"$GEN_BIN" 3 3 42 > "$SCRIPT_DIR/build/edge_case.txt"
+"$GEN_BIN" 4 6 43 > "$SCRIPT_DIR/build/small_k4.txt"
+"$GEN_BIN" 500 5000 44 > "$SCRIPT_DIR/build/medium_500.txt"
+"$GEN_BIN" 100000 1000000 45 > "$SCRIPT_DIR/build/large_max.txt"
 
 if [[ -n "${SLURM_JOB_ID:-}" ]] && command -v srun >/dev/null 2>&1; then
 	MPI_RUNNER=(mpirun)
@@ -70,10 +70,10 @@ benchmark() {
 }
 
 echo "Running PDF sample, edge case, K4, medium, and large benchmarks..."
-benchmark pdf_example build/sample_q4.txt 2
-benchmark edge_case build/edge_case.txt 1
-benchmark small_k4 build/small_k4.txt 4
-benchmark medium_500 build/medium_500.txt
-benchmark large_max build/large_max.txt
+benchmark pdf_example "$SCRIPT_DIR/build/sample_q4.txt" 2
+benchmark edge_case "$SCRIPT_DIR/build/edge_case.txt" 1
+benchmark small_k4 "$SCRIPT_DIR/build/small_k4.txt" 4
+benchmark medium_500 "$SCRIPT_DIR/build/medium_500.txt"
+benchmark large_max "$SCRIPT_DIR/build/large_max.txt"
 
 echo "Results saved to: $RESULT_FILE"
