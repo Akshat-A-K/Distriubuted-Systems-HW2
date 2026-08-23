@@ -14,9 +14,6 @@ HW2/Q4/generate_graph
 HW2/Q4/triangle_sep
 HW2/Q4/graph*.txt
 HW2/Q4/*.txt
-HW2/Q4/results/*
-HW2/Q3/results/*
-HW2/Q8/results/*
 
 # HPC job output
 slurm-*.out
