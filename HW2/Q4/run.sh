@@ -48,16 +48,22 @@ benchmark() {
 	local input_file="$2"
 	local expected_result="${3:-}"
 	local vertices edges seq_seconds seq_result processes mpi_seconds mpi_result speedup efficiency
+	local seq_output="$SCRIPT_DIR/build/seq_output.txt"
+	local seq_time="$SCRIPT_DIR/build/seq_time.txt"
+	local mpi_output="$SCRIPT_DIR/build/mpi_output.txt"
+	local mpi_time="$SCRIPT_DIR/build/mpi_time.txt"
 	read -r vertices edges < "$input_file"
-	seq_seconds="$(/usr/bin/time -f '%e' "$SEQ_BIN" "$input_file" 2>&1 >/dev/null)"
-	seq_result="$("$SEQ_BIN" "$input_file")"
+	/usr/bin/time -f '%e' -o "$seq_time" "$SEQ_BIN" "$input_file" > "$seq_output"
+	seq_seconds="$(< "$seq_time")"
+	seq_result="$(< "$seq_output")"
 	if [[ -n "$expected_result" && "$seq_result" != "$expected_result" ]]; then
 		echo "Sequential correctness failed for $graph_name: expected $expected_result, got $seq_result." >&2
 		exit 1
 	fi
 	for processes in 1 2 4 8; do
-		mpi_seconds="$(/usr/bin/time -f '%e' "${MPI_RUNNER[@]}" "$MPI_COUNT_FLAG" "$processes" "$MPI_BIN" "$input_file" 2>&1 >/dev/null)"
-		mpi_result="$(${MPI_RUNNER[@]} "$MPI_COUNT_FLAG" "$processes" "$MPI_BIN" "$input_file")"
+		/usr/bin/time -f '%e' -o "$mpi_time" "${MPI_RUNNER[@]}" "$MPI_COUNT_FLAG" "$processes" "$MPI_BIN" "$input_file" > "$mpi_output"
+		mpi_seconds="$(< "$mpi_time")"
+		mpi_result="$(< "$mpi_output")"
 		if [[ "$mpi_result" != "$seq_result" ]]; then
 			echo "Correctness failed for $graph_name at P=$processes." >&2
 			exit 1
