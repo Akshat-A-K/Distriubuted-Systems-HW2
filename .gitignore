@@ -11,6 +11,7 @@ cmake-build-*/
 
 # Project-generated binaries and graph data
 HW2/Q4/generate_graph
+HW2/Q4/triangle_sep
 HW2/Q4/graph*.txt
 HW2/Q4/*.txt
 HW2/Q4/results/*
