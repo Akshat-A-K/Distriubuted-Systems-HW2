@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-SEQ_BIN="build/triangle_sep"
+SEQ_BIN="build/triangle_seq"
 MPI_BIN="build/triangle_mpi"
 GEN_BIN="build/generate_graph"
 RESULTS_DIR="results"
@@ -14,14 +14,11 @@ RESULT_FILE="$RESULTS_DIR/benchmark_$TIMESTAMP.csv"
 mkdir -p build "$RESULTS_DIR"
 
 echo "Compiling..."
-g++ -O2 -std=c++17 -Wall -Wextra -pedantic triangle_sep.cpp -o "$SEQ_BIN"
-g++ -O2 -std=c++17 -Wall -Wextra -pedantic generate_graph.cpp -o "$GEN_BIN"
-
-if ! command -v mpicxx >/dev/null 2>&1; then
-	echo "Error: mpicxx is required to compile triangle_mpi.cpp." >&2
+if ! command -v make >/dev/null 2>&1; then
+	echo "Error: make is required to build Q4." >&2
 	exit 1
 fi
-mpicxx -O2 -std=c++17 -Wall -Wextra -pedantic triangle_mpi.cpp -o "$MPI_BIN"
+make all
 
 cat > build/sample_q4.txt <<'EOF'
 4 5
