@@ -1,0 +1,11 @@
+Input: q4_triangle_benchmark.csv
+Benchmark rows: 20
+Graph cases: 5
+Triangle counts are consistent across all process counts.
+
+Graph | Triangles | Fastest MPI P | Fastest MPI seconds | Best speedup P | Best speedup | Best efficiency P | Best efficiency
+pdf_example | 2 | 1 | 0.27 | 1 | 0.0 | 1 | 0.0
+edge_case | 1 | 1 | 0.22 | 1 | 0.0 | 1 | 0.0
+small_k4 | 4 | 1 | 0.2 | 1 | 0.0 | 1 | 0.0
+medium_500 | 1284 | 1 | 0.22 | 1 | 0.0 | 1 | 0.0
+large_max | 1300 | 1 | 0.59 | 1 | 0.59322 | 1 | 0.59322
