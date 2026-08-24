@@ -15,6 +15,23 @@
 #define loop(i,n) for(ll i=0; i<n; i++)
 using namespace std;
 
+ll count_common(const vector<int> &a, const vector<int> &b) {
+    ll common = 0;
+    size_t i = 0, j = 0;
+    while (i < a.size() && j < b.size()) {
+        if (a[i] == b[j]) {
+            common++;
+            i++;
+            j++;
+        } else if (a[i] < b[j]) {
+            i++;
+        } else {
+            j++;
+        }
+    }
+    return common;
+}
+
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
     fast;
@@ -22,6 +39,8 @@ int main(int argc, char *argv[]) {
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    double setup_start = MPI_Wtime();
 
     if (argc != 2) {
         if (rank == 0) {
@@ -60,26 +79,29 @@ int main(int argc, char *argv[]) {
     MPI_Bcast(&v, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&e, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+    double setup_time = MPI_Wtime() - setup_start;
+
     if (rank != 0) {
         degree.resize(v);
     }
 
+    double degree_start = MPI_Wtime();
     MPI_Bcast(degree.data(), v, MPI_INT, 0, MPI_COMM_WORLD );
+    double degree_time = MPI_Wtime() - degree_start;
 
     vector<vector<int>> adj;
     if (rank == 0) {
         adj.resize(v);
-        for (auto edge : edges) {
-            int u = edge.first;
-            int w = edge.second;
-            if (degree[u] < degree[w] || (degree[u] == degree[w] && u < w)) {
-                adj[u].pb(w);
+        for (auto e : edges) {
+            int u = e.first, v = e.second;
+            if (degree[u] < degree[v] || (degree[u] == degree[v] && u < v)) {
+                adj[u].pb(v);
             } else {
-                adj[w].pb(u);
+                adj[v].pb(u);
             }
         }
         for (int i = 0; i < v; i++) {
-            st(adj[i]);
+            sort(all(adj[i]));
         }
     }
 
@@ -90,6 +112,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    double adjacency_start = MPI_Wtime();
     MPI_Bcast(adj_size.data(), v, MPI_INT, 0, MPI_COMM_WORLD);
 
     vector<int> flat_adj;
@@ -118,6 +141,7 @@ int main(int argc, char *argv[]) {
     }
 
     MPI_Bcast(flat_adj.data(), total_adj_size, MPI_INT, 0, MPI_COMM_WORLD);
+    double adjacency_time = MPI_Wtime() - adjacency_start;
 
     if (rank != 0) {
         adj.resize(v);
@@ -160,34 +184,54 @@ int main(int argc, char *argv[]) {
 
     vector<int> local_edges(send_counts[rank] * 2);
 
+    double scatter_start = MPI_Wtime();
     MPI_Scatterv(flat_edges.data(), mpi_counts.data(), mpi_displacements.data(), MPI_INT, local_edges.data(), mpi_counts[rank], MPI_INT, 0, MPI_COMM_WORLD);
+    double scatter_time = MPI_Wtime() - scatter_start;
 
+    double compute_start = MPI_Wtime();
     ll local_triangles = 0;
     for (int i = 0; i < send_counts[rank]; i++) {
         int u = local_edges[2 * i];
         int w = local_edges[2 * i + 1];
         if (degree[u] < degree[w] || (degree[u] == degree[w] && u < w)) {
-            for (int x : adj[u]) {
-                if (binary_search(adj[w].begin(), adj[w].end(), x)) {
-                    local_triangles++;
-                }
-            }
-        }
-        else{
-            for (int x : adj[w]) {
-                if (binary_search(adj[u].begin(), adj[u].end(), x)) {
-                    local_triangles++;
-                }
-            }
+            local_triangles += count_common(adj[u], adj[w]);
+        } else {
+            local_triangles += count_common(adj[w], adj[u]);
         }
     }
+    double compute_time = MPI_Wtime() - compute_start;
 
     ll global_triangles = 0;
-
+    double reduce_start = MPI_Wtime();
     MPI_Reduce(&local_triangles, &global_triangles, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    double reduce_time = MPI_Wtime() - reduce_start;
+
+    double maximum_setup_time = 0;
+    double maximum_degree_time = 0;
+    double maximum_adjacency_time = 0;
+    double maximum_scatter_time = 0;
+    double maximum_compute_time = 0;
+    double maximum_reduce_time = 0;
+
+    MPI_Reduce(&setup_time, &maximum_setup_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&degree_time, &maximum_degree_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&adjacency_time, &maximum_adjacency_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&scatter_time, &maximum_scatter_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&compute_time, &maximum_compute_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&reduce_time, &maximum_reduce_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
     if (rank == 0) {
         cout << global_triangles << endl;
+        double algorithm_time = maximum_setup_time + maximum_degree_time
+            + maximum_adjacency_time + maximum_scatter_time
+            + maximum_compute_time + maximum_reduce_time;
+        cerr << "MPI_PHASES setup=" << maximum_setup_time
+             << " degree=" << maximum_degree_time
+             << " adjacency=" << maximum_adjacency_time
+             << " scatter=" << maximum_scatter_time
+             << " compute=" << maximum_compute_time
+             << " reduce=" << maximum_reduce_time
+             << " algo=" << algorithm_time << endl;
     }
 
     MPI_Finalize();

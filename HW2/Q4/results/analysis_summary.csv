@@ -1,6 +1,7 @@
-graph,vertices,edges,triangles,sequential_seconds,fastest_mpi_processes,fastest_mpi_seconds,best_speedup_processes,best_speedup,best_efficiency_processes,best_efficiency
-pdf_example,4,5,2,0.0,1,0.27,1,0.0,1,0.0
-edge_case,3,3,1,0.0,1,0.22,1,0.0,1,0.0
-small_k4,4,6,4,0.0,1,0.2,1,0.0,1,0.0
-medium_500,500,5000,1284,0.0,1,0.22,1,0.0,1,0.0
-large_max,100000,1000000,1300,0.35,1,0.59,1,0.59322,1,0.59322
+graph,vertices,edges,triangles,sequential_seconds,fastest_mpi_processes,fastest_mpi_seconds,best_wall_speedup_processes,best_wall_speedup,best_algo_speedup_processes,best_algo_speedup,best_efficiency_processes,best_efficiency
+pdf_example,4,5,2,0.015746482,1,0.332327648,1,0.047382,1,4.448372,1,0.047382
+edge_case,3,3,1,0.013517154,1,0.333538289,1,0.040527,2,14.119329,1,0.040527
+small_k4,4,6,4,0.015532049,1,0.335447815,1,0.046302,2,5.769235,1,0.046302
+medium_500,500,5000,1284,0.016706843,1,0.328634566,1,0.050837,1,5.157691,1,0.050837
+large_max,100000,1000000,1300,0.57933611,2,0.770263548,2,0.752127,2,1.372756,2,0.376063
+dense_1500,1500,1000000,395056429,3.059672204,8,1.365550757,8,2.240614,8,3.057074,1,0.997851

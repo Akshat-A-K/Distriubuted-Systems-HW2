@@ -1,18 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="900" height="540" viewBox="0 0 900 540">
 <rect width="100%" height="100%" fill="#fbfaf7"/>
-<text x="450.0" y="32" text-anchor="middle" font-family="Arial" font-size="22" font-weight="bold" fill="#202124">Q4 MPI Runtime</text>
+<text x="450.0" y="32" text-anchor="middle" font-family="Arial" font-size="22" font-weight="bold" fill="#202124">Q4 MPI Wall Runtime</text>
 <line x1="85" y1="470.0" x2="865" y2="470.0" stroke="#d9d9d9"/>
 <text x="73" y="475.0" text-anchor="end" font-family="Arial" font-size="12" fill="#555">0.00</text>
 <line x1="85" y1="387.0" x2="865" y2="387.0" stroke="#d9d9d9"/>
-<text x="73" y="392.0" text-anchor="end" font-family="Arial" font-size="12" fill="#555">0.17</text>
+<text x="73" y="392.0" text-anchor="end" font-family="Arial" font-size="12" fill="#555">0.61</text>
 <line x1="85" y1="304.0" x2="865" y2="304.0" stroke="#d9d9d9"/>
-<text x="73" y="309.0" text-anchor="end" font-family="Arial" font-size="12" fill="#555">0.34</text>
+<text x="73" y="309.0" text-anchor="end" font-family="Arial" font-size="12" fill="#555">1.23</text>
 <line x1="85" y1="221.0" x2="865" y2="221.0" stroke="#d9d9d9"/>
-<text x="73" y="226.0" text-anchor="end" font-family="Arial" font-size="12" fill="#555">0.51</text>
+<text x="73" y="226.0" text-anchor="end" font-family="Arial" font-size="12" fill="#555">1.84</text>
 <line x1="85" y1="138.0" x2="865" y2="138.0" stroke="#d9d9d9"/>
-<text x="73" y="143.0" text-anchor="end" font-family="Arial" font-size="12" fill="#555">0.68</text>
+<text x="73" y="143.0" text-anchor="end" font-family="Arial" font-size="12" fill="#555">2.45</text>
 <line x1="85" y1="55.0" x2="865" y2="55.0" stroke="#d9d9d9"/>
-<text x="73" y="60.0" text-anchor="end" font-family="Arial" font-size="12" fill="#555">0.85</text>
+<text x="73" y="60.0" text-anchor="end" font-family="Arial" font-size="12" fill="#555">3.07</text>
 <line x1="85" y1="55" x2="85" y2="470" stroke="#555"/>
 <line x1="85" y1="470" x2="865" y2="470" stroke="#555"/>
 <text x="85.0" y="495" text-anchor="middle" font-family="Arial" font-size="12" fill="#555">1</text>
@@ -21,31 +21,36 @@
 <text x="865.0" y="495" text-anchor="middle" font-family="Arial" font-size="12" fill="#555">8</text>
 <text x="450.0" y="522" text-anchor="middle" font-family="Arial" font-size="14" fill="#333">MPI processes</text>
 <text x="18" y="270.0" text-anchor="middle" transform="rotate(-90 18 270.0)" font-family="Arial" font-size="14" fill="#333">Time (seconds)</text>
-<polyline points="85.0,338.2 345.0,338.2 605.0,323.5 865.0,313.8" fill="none" stroke="#1769aa" stroke-width="3"/>
-<circle cx="85.0" cy="338.2" r="5" fill="#1769aa"/>
-<circle cx="345.0" cy="338.2" r="5" fill="#1769aa"/>
-<circle cx="605.0" cy="323.5" r="5" fill="#1769aa"/>
-<circle cx="865.0" cy="313.8" r="5" fill="#1769aa"/>
-<polyline points="85.0,362.6 345.0,347.9 605.0,318.6 865.0,333.3" fill="none" stroke="#d1495b" stroke-width="3"/>
-<circle cx="85.0" cy="362.6" r="5" fill="#d1495b"/>
-<circle cx="345.0" cy="347.9" r="5" fill="#d1495b"/>
-<circle cx="605.0" cy="318.6" r="5" fill="#d1495b"/>
-<circle cx="865.0" cy="333.3" r="5" fill="#d1495b"/>
-<polyline points="85.0,372.4 345.0,338.2 605.0,313.8 865.0,318.6" fill="none" stroke="#2a9d8f" stroke-width="3"/>
-<circle cx="85.0" cy="372.4" r="5" fill="#2a9d8f"/>
-<circle cx="345.0" cy="338.2" r="5" fill="#2a9d8f"/>
-<circle cx="605.0" cy="313.8" r="5" fill="#2a9d8f"/>
-<circle cx="865.0" cy="318.6" r="5" fill="#2a9d8f"/>
-<polyline points="85.0,362.6 345.0,352.8 605.0,318.6 865.0,318.6" fill="none" stroke="#e09f3e" stroke-width="3"/>
-<circle cx="85.0" cy="362.6" r="5" fill="#e09f3e"/>
-<circle cx="345.0" cy="352.8" r="5" fill="#e09f3e"/>
-<circle cx="605.0" cy="318.6" r="5" fill="#e09f3e"/>
-<circle cx="865.0" cy="318.6" r="5" fill="#e09f3e"/>
-<polyline points="85.0,181.9 345.0,79.4 605.0,55.0 865.0,55.0" fill="none" stroke="#6c4f9d" stroke-width="3"/>
-<circle cx="85.0" cy="181.9" r="5" fill="#6c4f9d"/>
-<circle cx="345.0" cy="79.4" r="5" fill="#6c4f9d"/>
-<circle cx="605.0" cy="55.0" r="5" fill="#6c4f9d"/>
-<circle cx="865.0" cy="55.0" r="5" fill="#6c4f9d"/>
+<polyline points="85.0,425.0 345.0,423.8 605.0,420.9 865.0,412.7" fill="none" stroke="#1769aa" stroke-width="3"/>
+<circle cx="85.0" cy="425.0" r="5" fill="#1769aa"/>
+<circle cx="345.0" cy="423.8" r="5" fill="#1769aa"/>
+<circle cx="605.0" cy="420.9" r="5" fill="#1769aa"/>
+<circle cx="865.0" cy="412.7" r="5" fill="#1769aa"/>
+<polyline points="85.0,424.9 345.0,424.3 605.0,419.7 865.0,382.4" fill="none" stroke="#d1495b" stroke-width="3"/>
+<circle cx="85.0" cy="424.9" r="5" fill="#d1495b"/>
+<circle cx="345.0" cy="424.3" r="5" fill="#d1495b"/>
+<circle cx="605.0" cy="419.7" r="5" fill="#d1495b"/>
+<circle cx="865.0" cy="382.4" r="5" fill="#d1495b"/>
+<polyline points="85.0,424.6 345.0,424.4 605.0,419.1 865.0,413.0" fill="none" stroke="#2a9d8f" stroke-width="3"/>
+<circle cx="85.0" cy="424.6" r="5" fill="#2a9d8f"/>
+<circle cx="345.0" cy="424.4" r="5" fill="#2a9d8f"/>
+<circle cx="605.0" cy="419.1" r="5" fill="#2a9d8f"/>
+<circle cx="865.0" cy="413.0" r="5" fill="#2a9d8f"/>
+<polyline points="85.0,425.5 345.0,424.2 605.0,420.3 865.0,412.3" fill="none" stroke="#e09f3e" stroke-width="3"/>
+<circle cx="85.0" cy="425.5" r="5" fill="#e09f3e"/>
+<circle cx="345.0" cy="424.2" r="5" fill="#e09f3e"/>
+<circle cx="605.0" cy="420.3" r="5" fill="#e09f3e"/>
+<circle cx="865.0" cy="412.3" r="5" fill="#e09f3e"/>
+<polyline points="85.0,73.0 345.0,365.7 605.0,333.3 865.0,326.5" fill="none" stroke="#6c4f9d" stroke-width="3"/>
+<circle cx="85.0" cy="73.0" r="5" fill="#6c4f9d"/>
+<circle cx="345.0" cy="365.7" r="5" fill="#6c4f9d"/>
+<circle cx="605.0" cy="333.3" r="5" fill="#6c4f9d"/>
+<circle cx="865.0" cy="326.5" r="5" fill="#6c4f9d"/>
+<polyline points="85.0,55.0 345.0,197.5 605.0,263.3 865.0,285.2" fill="none" stroke="#1769aa" stroke-width="3"/>
+<circle cx="85.0" cy="55.0" r="5" fill="#1769aa"/>
+<circle cx="345.0" cy="197.5" r="5" fill="#1769aa"/>
+<circle cx="605.0" cy="263.3" r="5" fill="#1769aa"/>
+<circle cx="865.0" cy="285.2" r="5" fill="#1769aa"/>
 <line x1="680" y1="65" x2="698" y2="65" stroke="#1769aa" stroke-width="3"/>
 <text x="705" y="70" font-family="Arial" font-size="12" fill="#333">pdf_example</text>
 <line x1="680" y1="87" x2="698" y2="87" stroke="#d1495b" stroke-width="3"/>
@@ -56,4 +61,6 @@
 <text x="705" y="136" font-family="Arial" font-size="12" fill="#333">medium_500</text>
 <line x1="680" y1="153" x2="698" y2="153" stroke="#6c4f9d" stroke-width="3"/>
 <text x="705" y="158" font-family="Arial" font-size="12" fill="#333">large_max</text>
+<line x1="680" y1="175" x2="698" y2="175" stroke="#1769aa" stroke-width="3"/>
+<text x="705" y="180" font-family="Arial" font-size="12" fill="#333">dense_1500</text>
 </svg>

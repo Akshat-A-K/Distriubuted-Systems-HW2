@@ -14,6 +14,23 @@
 #define loop(i,n) for(ll i=0; i<n; i++)
 using namespace std;
 
+ll count_common(const vector<int> &a, const vector<int> &b) {
+    ll common = 0;
+    size_t i = 0, j = 0;
+    while (i < a.size() && j < b.size()) {
+        if (a[i] == b[j]) {
+            common++;
+            i++;
+            j++;
+        } else if (a[i] < b[j]) {
+            i++;
+        } else {
+            j++;
+        }
+    }
+    return common;
+}
+
 int main(int argc, char *argv[]) {
     fast;
     if (argc != 2) {
@@ -57,17 +74,9 @@ int main(int argc, char *argv[]) {
     for (auto e : edges) {
         int u = e.first, v = e.second;
         if (degree[u] < degree[v] || (degree[u] == degree[v] && u < v)) {
-            for (int w : adj[u]) {
-                if (binary_search(all(adj[v]), w)) {
-                    triangles++;
-                }
-            }
+            triangles += count_common(adj[u], adj[v]);
         } else {
-            for (int w : adj[v]) {
-                if (binary_search(all(adj[u]), w)) {
-                    triangles++;
-                }
-            }
+            triangles += count_common(adj[v], adj[u]);
         }
     }
     cout << triangles << endl;

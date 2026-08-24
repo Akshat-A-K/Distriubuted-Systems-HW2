@@ -15,7 +15,7 @@ The Q4 program counts triangles in an undirected graph. The graph edges are divi
 
 ### Results
 
-The benchmark was run with 1, 2, 4, and 8 MPI processes on five graph sizes. The result file contains 20 rows. All process counts gave the same answer for each graph, so the parallel result is correct.
+The benchmark uses 1, 2, 4, and 8 MPI processes. It records both whole-launcher wall time and internal algorithm time. The internal MPI timing separates setup/I/O, degree broadcast, adjacency broadcast, edge scatter, local compute, and final reduction. Tiny cases use repeated runs. The benchmark produced 24 rows, and all process counts gave the same answer for each graph.
 
 | Graph | Vertices | Edges | Triangles |
 | --- | ---: | ---: | ---: |
@@ -24,8 +24,22 @@ The benchmark was run with 1, 2, 4, and 8 MPI processes on five graph sizes. The
 | Small K4 | 4 | 6 | 4 |
 | Medium | 500 | 5,000 | 1,284 |
 | Large maximum | 100,000 | 1,000,000 | 1,300 |
+| Dense | 1,500 | 1,000,000 | 395,056,429 |
+
+The following table shows the best measured values for each graph. Wall time includes process launch and MPI startup. Algorithm time is the sum of the measured MPI setup, communication, computation, and reduction phases.
+
+| Graph | Sequential (s) | Fastest wall MPI (P, s) | Best wall speedup | Best algorithm speedup |
+| --- | ---: | ---: | ---: | ---: |
+| PDF sample | 0.015746 | 1, 0.332328 | 0.047382 | 4.448372 |
+| Edge case | 0.013517 | 1, 0.333538 | 0.040527 | 14.119329 |
+| Small K4 | 0.015532 | 1, 0.335448 | 0.046302 | 5.769235 |
+| Medium | 0.016707 | 1, 0.328635 | 0.050837 | 5.157691 |
+| Large maximum | 0.579336 | 2, 0.770264 | 0.752127 | 1.372756 |
+| Dense | 3.059672 | 8, 1.365551 | 2.240614 | 3.057074 |
 
 ![MPI speedup](Q4/results/speedup_plot.svg)
+
+![MPI algorithm speedup](Q4/results/algo_speedup_plot.svg)
 
 ![MPI efficiency](Q4/results/efficiency_plot.svg)
 
@@ -33,11 +47,13 @@ The benchmark was run with 1, 2, 4, and 8 MPI processes on five graph sizes. The
 
 ### Observations
 
-For the first four small and medium graphs, the sequential time is shown as 0.00 seconds. This is because the work is smaller than the timer resolution. Therefore, speedup for these cases is not useful for comparison.
+Small graph wall time is dominated by MPI process spawning, MPI initialization, and finalization rather than triangle computation. Sequential times are about 0.014-0.016 seconds, while the fastest MPI wall times are about 0.329-0.335 seconds. Algorithm-only speedup is more useful for comparing internal computation and communication, although very small timings remain sensitive to measurement noise.
 
-For the largest graph, the sequential time was 0.35 seconds. The MPI time was 0.59 seconds with 1 process, 0.80 seconds with 2 processes, and 0.85 seconds with 4 and 8 processes. The best measured speedup was 0.593 with 1 MPI process. In this test, adding more processes did not improve the time because MPI startup, communication, and data distribution took more time than the parallel computation.
+For `large_max`, the sequential time was 0.579 seconds. The best wall result was P=2 at 0.770 seconds, giving a speedup of 0.752. At P=8, the largest algorithm phase was setup/I/O and the initial broadcast at 0.510252 seconds. The adjacency broadcast took 0.123202 seconds, while local compute took only 0.000456 seconds. Therefore, startup and replicated-data communication, together with launcher overhead, are responsible for the poor scaling.
 
-The triangle counts were 2, 1, 4, 1,284, and 1,300 for the five graphs. These values were unchanged for all process counts. The complete data and analysis files are in `HW2/Q4/results/`.
+The current implementation broadcasts the complete oriented graph to every rank. This is simple and makes local intersections easy, but it uses more communication and memory than a truly partitioned-storage design in which each machine stores an equal-sized subset and exchanges required neighbor data.
+
+The dense case has 1,500 vertices and 1,000,000 edges, about 89% of all possible undirected edges. It counted 395,056,429 triangles and took 3.060 seconds sequentially. This exercises the forward-counting algorithm near its O(E^1.5) worst-case behavior. Its best wall speedup was 2.241 at P=8, and its best algorithm speedup was 3.057 at P=8.
 
 ## Q8: Weather Data Parallelization
 

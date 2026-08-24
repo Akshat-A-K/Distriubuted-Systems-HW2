@@ -37,7 +37,7 @@ mpicxx -O2 -std=c++17 triangle_mpi.cpp -o triangle_mpi
 mpirun -np 4 ./triangle_mpi example.txt
 ```
 
-The program prints only the total triangle count.
+The program prints only the total triangle count to standard output. MPI phase timings are printed to standard error with the `MPI_PHASES` prefix.
 
 ### Reproducible tests and benchmarks
 
@@ -57,7 +57,7 @@ The script generates these fixed-seed cases:
 | Medium | 500 | 5000 | 44 |
 | Large maximum | 100000 | 1000000 | 45 |
 
-Each case is checked with the sequential program and MPI using `P=1,2,4,8`. Benchmark CSV files contain the graph size, process count, sequential time, MPI time, speedup, efficiency, and triangle count. They are written to `results/`.
+Each case is checked with the sequential program and MPI using `P=1,2,4,8`. Tiny cases use repeated runs. Benchmark CSV files contain high-resolution wall time, MPI algorithm time, setup/broadcast/scatter/compute/reduce phases, both speedup types, efficiency, and triangle count. The suite also includes a dense `V=1500`, `E=1000000` case, using about 89% of the possible edges, to exercise the worst-case behavior of the algorithm.
 
 The timing is end-to-end program runtime measured by the shell script. Correctness output remains a single integer as required by the assignment.
 

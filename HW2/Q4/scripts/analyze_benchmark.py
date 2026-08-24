@@ -13,9 +13,18 @@ REQUIRED_COLUMNS = {
     "edges",
     "processes",
     "sequential_seconds",
-    "mpi_seconds",
-    "speedup",
-    "efficiency",
+    "wall_seconds",
+    "algo_seconds",
+    "setup_seconds",
+    "degree_seconds",
+    "adjacency_seconds",
+    "scatter_seconds",
+    "compute_seconds",
+    "reduce_seconds",
+    "wall_speedup",
+    "wall_efficiency",
+    "algo_speedup",
+    "algo_efficiency",
     "triangles",
 }
 DETAIL_COLUMNS = [
@@ -24,9 +33,18 @@ DETAIL_COLUMNS = [
     "edges",
     "processes",
     "sequential_seconds",
-    "mpi_seconds",
-    "speedup",
-    "efficiency",
+    "wall_seconds",
+    "algo_seconds",
+    "setup_seconds",
+    "degree_seconds",
+    "adjacency_seconds",
+    "scatter_seconds",
+    "compute_seconds",
+    "reduce_seconds",
+    "wall_speedup",
+    "wall_efficiency",
+    "algo_speedup",
+    "algo_efficiency",
     "triangles",
 ]
 
@@ -68,9 +86,18 @@ def read_rows(input_path: Path) -> list[dict[str, object]]:
                         "edges": int(row["edges"]),
                         "processes": int(row["processes"]),
                         "sequential_seconds": float(row["sequential_seconds"]),
-                        "mpi_seconds": float(row["mpi_seconds"]),
-                        "speedup": float(row["speedup"]),
-                        "efficiency": float(row["efficiency"]),
+                        "wall_seconds": float(row["wall_seconds"]),
+                        "algo_seconds": float(row["algo_seconds"]),
+                        "setup_seconds": float(row["setup_seconds"]),
+                        "degree_seconds": float(row["degree_seconds"]),
+                        "adjacency_seconds": float(row["adjacency_seconds"]),
+                        "scatter_seconds": float(row["scatter_seconds"]),
+                        "compute_seconds": float(row["compute_seconds"]),
+                        "reduce_seconds": float(row["reduce_seconds"]),
+                        "wall_speedup": float(row["wall_speedup"]),
+                        "wall_efficiency": float(row["wall_efficiency"]),
+                        "algo_speedup": float(row["algo_speedup"]),
+                        "algo_efficiency": float(row["algo_efficiency"]),
                         "triangles": int(row["triangles"]),
                     }
                 )
@@ -100,9 +127,10 @@ def analyze(rows: list[dict[str, object]]) -> list[dict[str, object]]:
         if len(triangle_counts) != 1:
             raise ValueError(f"Triangle count mismatch for {graph}: {sorted(triangle_counts)}")
 
-        best_speedup = max(graph_rows, key=lambda row: float(row["speedup"]))
-        best_efficiency = max(graph_rows, key=lambda row: float(row["efficiency"]))
-        fastest_mpi = min(graph_rows, key=lambda row: float(row["mpi_seconds"]))
+        best_wall_speedup = max(graph_rows, key=lambda row: float(row["wall_speedup"]))
+        best_algo_speedup = max(graph_rows, key=lambda row: float(row["algo_speedup"]))
+        best_efficiency = max(graph_rows, key=lambda row: float(row["wall_efficiency"]))
+        fastest_mpi = min(graph_rows, key=lambda row: float(row["wall_seconds"]))
         first_row = graph_rows[0]
         summaries.append(
             {
@@ -112,28 +140,47 @@ def analyze(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "triangles": first_row["triangles"],
                 "sequential_seconds": first_row["sequential_seconds"],
                 "fastest_mpi_processes": fastest_mpi["processes"],
-                "fastest_mpi_seconds": fastest_mpi["mpi_seconds"],
-                "best_speedup_processes": best_speedup["processes"],
-                "best_speedup": best_speedup["speedup"],
+                "fastest_mpi_seconds": fastest_mpi["wall_seconds"],
+                "best_wall_speedup_processes": best_wall_speedup["processes"],
+                "best_wall_speedup": best_wall_speedup["wall_speedup"],
+                "best_algo_speedup_processes": best_algo_speedup["processes"],
+                "best_algo_speedup": best_algo_speedup["algo_speedup"],
                 "best_efficiency_processes": best_efficiency["processes"],
-                "best_efficiency": best_efficiency["efficiency"],
+                "best_efficiency": best_efficiency["wall_efficiency"],
             }
         )
     return summaries
 
 
 def write_report(path: Path, input_path: Path, rows: list[dict[str, object]], summaries: list[dict[str, object]]) -> None:
+    largest_graph = max(summaries, key=lambda summary: int(summary["edges"]))
+    largest_rows = [row for row in rows if row["graph"] == largest_graph["graph"]]
+    largest_row = max(largest_rows, key=lambda row: int(row["processes"]))
+    phase_names = {
+        "setup_seconds": "setup/I/O and initial broadcast",
+        "degree_seconds": "degree broadcast",
+        "adjacency_seconds": "adjacency broadcast",
+        "scatter_seconds": "edge Scatterv",
+        "compute_seconds": "local compute",
+        "reduce_seconds": "final reduction",
+    }
+    dominant_phase = max(phase_names, key=lambda phase: float(largest_row[phase]))
     with path.open("w", encoding="utf-8") as report:
         report.write(f"Input: {input_path.name}\n")
         report.write(f"Benchmark rows: {len(rows)}\n")
         report.write(f"Graph cases: {len(summaries)}\n")
         report.write("Triangle counts are consistent across all process counts.\n\n")
-        report.write("Graph | Triangles | Fastest MPI P | Fastest MPI seconds | Best speedup P | Best speedup | Best efficiency P | Best efficiency\n")
+        report.write("Small graphs: wall-clock results include process spawn, MPI initialization, and teardown, which dominate their small computation. Algorithm-only timings remove launcher overhead and are the better comparison for this scale.\n")
+        report.write(f"Largest graph: at P={largest_row['processes']}, the largest measured algorithm phase was {phase_names[dominant_phase]} ({largest_row[dominant_phase]} seconds). Wall-clock scaling also includes launcher overhead.\n")
+        report.write("Storage trade-off: the current implementation broadcasts the full oriented graph to every rank, which simplifies local intersections but adds communication and memory cost. A truly partitioned-storage design would better match the equal-sized-subset requirement, but would need remote-neighbor data exchange.\n")
+        report.write("Dense-case expectation: the added dense graph exercises the forward-counting algorithm near its O(E^1.5) worst-case behavior, so its timing is expected to be substantially higher than sparse cases.\n\n")
+        report.write("Graph | Triangles | Fastest MPI P | Wall seconds | Best wall speedup P | Best wall speedup | Best algorithm speedup P | Best algorithm speedup | Best wall efficiency P | Best wall efficiency\n")
         for summary in summaries:
             report.write(
                 f"{summary['graph']} | {summary['triangles']} | "
                 f"{summary['fastest_mpi_processes']} | {summary['fastest_mpi_seconds']} | "
-                f"{summary['best_speedup_processes']} | {summary['best_speedup']} | "
+                f"{summary['best_wall_speedup_processes']} | {summary['best_wall_speedup']} | "
+                f"{summary['best_algo_speedup_processes']} | {summary['best_algo_speedup']} | "
                 f"{summary['best_efficiency_processes']} | {summary['best_efficiency']}\n"
             )
 
@@ -199,9 +246,10 @@ def write_plots(results_dir: Path, rows: list[dict[str, object]]) -> None:
         svg.append("</svg>")
         (results_dir / filename).write_text("\n".join(svg), encoding="utf-8")
 
-    plot_metric("speedup", "Q4 MPI Speedup", "Speedup", "speedup_plot.svg")
-    plot_metric("efficiency", "Q4 MPI Efficiency", "Efficiency", "efficiency_plot.svg")
-    plot_metric("mpi_seconds", "Q4 MPI Runtime", "Time (seconds)", "mpi_runtime_plot.svg")
+    plot_metric("wall_speedup", "Q4 MPI Wall Speedup", "Speedup", "speedup_plot.svg")
+    plot_metric("algo_speedup", "Q4 MPI Algorithm Speedup", "Speedup", "algo_speedup_plot.svg")
+    plot_metric("wall_efficiency", "Q4 MPI Wall Efficiency", "Efficiency", "efficiency_plot.svg")
+    plot_metric("wall_seconds", "Q4 MPI Wall Runtime", "Time (seconds)", "mpi_runtime_plot.svg")
 
 
 def main() -> None:
