@@ -4,132 +4,132 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-MPI_BIN="build/bitonic"
-RESULTS_DIR="results"
+SEQ_BIN="$SCRIPT_DIR/build/bitonic_seq"
+MPI_BIN="$SCRIPT_DIR/build/bitonic_mpi"
+GEN_BIN="$SCRIPT_DIR/build/generate_data"
+RESULTS_DIR="$SCRIPT_DIR/results"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 RESULT_FILE="$RESULTS_DIR/benchmark_$TIMESTAMP.csv"
 
 mkdir -p build "$RESULTS_DIR"
 
-echo "=========================================================="
-echo "Compiling Bitonic Sort MPI Program..."
-echo "=========================================================="
-if ! command -v mpicxx >/dev/null 2>&1; then
-    echo "Error: mpicxx compiler is required." >&2
-    exit 1
+echo "Compiling..."
+if ! command -v make >/dev/null 2>&1; then
+	echo "Error: make is required to build Q3." >&2
+	exit 1
 fi
-mpicxx -O2 -std=c++17 -Wall -Wextra -pedantic bitonic.cpp -o "$MPI_BIN"
-echo "Compilation successful: $MPI_BIN"
-echo ""
+make -B all
 
-# Create sample input files from Home_Work_2.pdf
-cat > build/sample_n4.txt <<'EOF'
+# 1. Generate test cases
+cat > "$SCRIPT_DIR/build/sample_n4.txt" <<'EOF'
 4
 4 1 3 2
 EOF
 
-cat > build/sample_n8.txt <<'EOF'
+cat > "$SCRIPT_DIR/build/sample_n8.txt" <<'EOF'
 8
 5 3 8 1 9 2 7 4
 EOF
 
-# Detect runner (SLURM srun vs mpirun)
+"$GEN_BIN" 8 42 > "$SCRIPT_DIR/build/edge_case.txt"
+"$GEN_BIN" 64 43 > "$SCRIPT_DIR/build/small_64.txt"
+"$GEN_BIN" 1024 44 > "$SCRIPT_DIR/build/medium_1024.txt"
+"$GEN_BIN" 65536 45 > "$SCRIPT_DIR/build/large_65k.txt"
+"$GEN_BIN" 1048576 46 > "$SCRIPT_DIR/build/large_max.txt"
+"$GEN_BIN" 4194304 47 > "$SCRIPT_DIR/build/very_large.txt"
+
 if [[ -n "${SLURM_JOB_ID:-}" ]] && command -v srun >/dev/null 2>&1; then
-    MPI_RUNNER=(srun)
-    MPI_COUNT_FLAG="-n"
+	MPI_RUNNER=(mpirun --bind-to none --oversubscribe)
+	MPI_COUNT_FLAG="-np"
 else
-    MPI_RUNNER=(mpirun)
-    MPI_COUNT_FLAG="-np"
+	MPI_RUNNER=(mpirun --bind-to none --oversubscribe)
+	MPI_COUNT_FLAG="-np"
 fi
 
-echo "=========================================================="
-echo "Running Correctness Tests on PDF Sample Cases..."
-echo "=========================================================="
+printf 'dataset,elements,processes,sequential_seconds,wall_seconds,algo_seconds,setup_seconds,scatter_seconds,initsort_seconds,stagecomm_seconds,stagecomp_seconds,gather_seconds,compute_seconds,comm_seconds,wall_speedup,wall_efficiency,algo_speedup,algo_efficiency,status\n' > "$RESULT_FILE"
 
-# Test Example 1 (N=4)
-echo "Testing Example 1 (N=4, P=2)..."
-RES_N4_P1="$("${MPI_RUNNER[@]}" "$MPI_COUNT_FLAG" 1 "$MPI_BIN" build/sample_n4.txt --print)"
-RES_N4_P2="$("${MPI_RUNNER[@]}" "$MPI_COUNT_FLAG" 2 "$MPI_BIN" build/sample_n4.txt --print)"
+benchmark() {
+	local dataset_name="$1"
+	local input_file="$2"
+	local expected_result="${3:-}"
+	local elements seq_seconds seq_result processes wall_seconds algo_seconds setup_seconds scatter_seconds initsort_seconds
+	local stagecomm_seconds stagecomp_seconds gather_seconds compute_seconds comm_seconds
+	local mpi_result wall_speedup wall_efficiency algo_speedup algo_efficiency phase_line
+	local seq_output="$SCRIPT_DIR/build/seq_output.txt"
+	local mpi_output="$SCRIPT_DIR/build/mpi_output.txt"
+	local mpi_log="$SCRIPT_DIR/build/mpi_log.txt"
+	local repetitions=1
 
-if [[ "$RES_N4_P1" != "1 2 3 4" || "$RES_N4_P2" != "1 2 3 4" ]]; then
-    echo "FAILED: Example 1 output mismatch! Expected '1 2 3 4', got P1='$RES_N4_P1', P2='$RES_N4_P2'" >&2
-    exit 1
+	read -r elements < "$input_file"
+	if (( elements < 10000 )); then repetitions=10; fi
+
+	seq_seconds="$(for ((repeat = 0; repeat < repetitions; ++repeat)); do
+		start="$(date +%s%N)"
+		"$SEQ_BIN" "$input_file" > "$seq_output"
+		end="$(date +%s%N)"
+		printf '%s\n' "$((end - start))"
+	done | awk '{ total += $1 } END { printf "%.9f", total / NR / 1000000000 }')"
+
+	seq_result="$(< "$seq_output")"
+	if [[ -n "$expected_result" && "$seq_result" != "$expected_result" ]]; then
+		echo "Sequential correctness failed for $dataset_name: expected '$expected_result', got '$seq_result'." >&2
+		exit 1
+	fi
+
+	for processes in 1 2 4 8; do
+		if (( elements < processes )); then
+			continue
+		fi
+
+		wall_seconds="$(for ((repeat = 0; repeat < repetitions; ++repeat)); do
+			start="$(date +%s%N)"
+			"${MPI_RUNNER[@]}" "$MPI_COUNT_FLAG" "$processes" "$MPI_BIN" "$input_file" > "$mpi_output" 2> "$mpi_log"
+			end="$(date +%s%N)"
+			printf '%s\n' "$((end - start))"
+		done | awk '{ total += $1 } END { printf "%.9f", total / NR / 1000000000 }')"
+
+		phase_line="$(grep 'MPI_PHASES ' "$mpi_log" | tail -n 1)"
+		read -r setup_seconds scatter_seconds initsort_seconds stagecomm_seconds stagecomp_seconds gather_seconds compute_seconds comm_seconds algo_seconds <<< "$(printf '%s\n' "$phase_line" | awk '{ for (i = 2; i <= NF; i++) { split($i, value, "="); metrics[value[1]] = value[2] } printf "%s %s %s %s %s %s %s %s %s", metrics["setup"], metrics["scatter"], metrics["initsort"], metrics["stagecomm"], metrics["stagecomp"], metrics["gather"], metrics["compute"], metrics["comm"], metrics["algo"] }')"
+
+		if [[ -z "$algo_seconds" ]]; then
+			echo "MPI phase timing output missing for $dataset_name at P=$processes." >&2
+			echo "Expected a line beginning with MPI_PHASES in $mpi_log." >&2
+			exit 1
+		fi
+
+		mpi_result="$(< "$mpi_output")"
+		if [[ "$mpi_result" != "$seq_result" ]]; then
+			echo "Correctness failed for $dataset_name at P=$processes." >&2
+			exit 1
+		fi
+
+		wall_speedup="$(awk "BEGIN { printf \"%.6f\", $seq_seconds / $wall_seconds }")"
+		wall_efficiency="$(awk "BEGIN { printf \"%.6f\", $wall_speedup / $processes }")"
+		algo_speedup="$(awk "BEGIN { printf \"%.6f\", $seq_seconds / $algo_seconds }")"
+		algo_efficiency="$(awk "BEGIN { printf \"%.6f\", $algo_speedup / $processes }")"
+
+		printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,PASS\n' \
+			"$dataset_name" "$elements" "$processes" "$seq_seconds" "$wall_seconds" "$algo_seconds" \
+			"$setup_seconds" "$scatter_seconds" "$initsort_seconds" "$stagecomm_seconds" "$stagecomp_seconds" \
+			"$gather_seconds" "$compute_seconds" "$comm_seconds" \
+			"$wall_speedup" "$wall_efficiency" "$algo_speedup" "$algo_efficiency" >> "$RESULT_FILE"
+	done
+	echo "$dataset_name: $elements elements sorted and verified across all P"
+}
+
+echo "Running PDF sample, edge case, small, medium, large, and very large benchmarks..."
+benchmark pdf_example1 "$SCRIPT_DIR/build/sample_n4.txt" "1 2 3 4"
+benchmark pdf_example2 "$SCRIPT_DIR/build/sample_n8.txt" "1 2 3 4 5 7 8 9"
+benchmark edge_case "$SCRIPT_DIR/build/edge_case.txt"
+benchmark small_64 "$SCRIPT_DIR/build/small_64.txt"
+benchmark medium_1024 "$SCRIPT_DIR/build/medium_1024.txt"
+benchmark large_65k "$SCRIPT_DIR/build/large_65k.txt"
+benchmark large_max "$SCRIPT_DIR/build/large_max.txt"
+benchmark very_large "$SCRIPT_DIR/build/very_large.txt"
+
+echo "Results saved to: $RESULT_FILE"
+
+if command -v python3 >/dev/null 2>&1 && [[ -f "$SCRIPT_DIR/scripts/analyze_benchmark.py" ]]; then
+	echo "Running benchmark analysis..."
+	python3 "$SCRIPT_DIR/scripts/analyze_benchmark.py" "$RESULT_FILE"
 fi
-echo "PASSED: Example 1 (N=4) -> $RES_N4_P2"
-
-# Test Example 2 (N=8)
-echo "Testing Example 2 (N=8, P=1, 2, 4, 8)..."
-EXPECTED_N8="1 2 3 4 5 7 8 9"
-for p in 1 2 4 8; do
-    RES_N8="$("${MPI_RUNNER[@]}" "$MPI_COUNT_FLAG" "$p" "$MPI_BIN" build/sample_n8.txt --print)"
-    if [[ "$RES_N8" != "$EXPECTED_N8" ]]; then
-        echo "FAILED: Example 2 output mismatch for P=$p! Expected '$EXPECTED_N8', got '$RES_N8'" >&2
-        exit 1
-    fi
-done
-echo "PASSED: Example 2 (N=8) -> $EXPECTED_N8 across all P in {1, 2, 4, 8}"
-echo ""
-
-echo "=========================================================="
-echo "Running Benchmark Suite..."
-echo "=========================================================="
-
-printf 'input_category,N,processes,seq_time_sec,total_time_sec,comp_time_sec,comm_time_sec,comm_pct,speedup,efficiency,correct\n' > "$RESULT_FILE"
-
-# List of input sizes: small, medium, large, very large
-SIZES=(
-    "Small:8"
-    "Small:64"
-    "Small:1024"
-    "Medium:65536"
-    "Medium:262144"
-    "Large:1048576"
-    "Large:4194304"
-    "VeryLarge:16777216"
-)
-
-for entry in "${SIZES[@]}"; do
-    CATEGORY="${entry%%:*}"
-    N="${entry##*:}"
-    echo "----------------------------------------------------------"
-    echo "Benchmarking Category: $CATEGORY, N = $N"
-    echo "----------------------------------------------------------"
-
-    T1=""
-    for P in 1 2 4 8; do
-        if [ "$N" -lt "$P" ]; then
-            continue
-        fi
-
-        # Run benchmark mode
-        OUTPUT="$("${MPI_RUNNER[@]}" "$MPI_COUNT_FLAG" "$P" "$MPI_BIN" "$N" 42 --benchmark)"
-        
-        # Extract fields from output
-        # Output format: N=.. P=.. SeqTime=.. TotalTime=.. CompTime=.. (X%) CommTime=.. (Y%) Correct=YES
-        SEQ_TIME=$(echo "$OUTPUT" | sed -n 's/.*SeqTime=\([0-9.]*\).*/\1/p')
-        TOTAL_TIME=$(echo "$OUTPUT" | sed -n 's/.*TotalTime=\([0-9.]*\).*/\1/p')
-        COMP_TIME=$(echo "$OUTPUT" | sed -n 's/.*CompTime=\([0-9.]*\).*/\1/p')
-        COMM_TIME=$(echo "$OUTPUT" | sed -n 's/.*CommTime=\([0-9.]*\).*/\1/p')
-        CORRECT=$(echo "$OUTPUT" | sed -n 's/.*Correct=\([A-Z]*\).*/\1/p')
-
-        if [ "$P" -eq 1 ]; then
-            T1="$TOTAL_TIME"
-        fi
-
-        # Calculate speedup and efficiency
-        SPEEDUP="$(awk "BEGIN { if ($TOTAL_TIME > 0) printf \"%.4f\", $T1 / $TOTAL_TIME; else printf \"1.0000\" }")"
-        EFFICIENCY="$(awk "BEGIN { printf \"%.4f\", $SPEEDUP / $P }")"
-        COMM_PCT="$(awk "BEGIN { if ($TOTAL_TIME > 0) printf \"%.2f\", ($COMM_TIME / $TOTAL_TIME) * 100; else printf \"0.00\" }")"
-
-        printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
-            "$CATEGORY" "$N" "$P" "$SEQ_TIME" "$TOTAL_TIME" "$COMP_TIME" "$COMM_TIME" "$COMM_PCT" "$SPEEDUP" "$EFFICIENCY" "$CORRECT" >> "$RESULT_FILE"
-
-        printf "  P=%d | Total: %8.6fs | Comp: %8.6fs | Comm: %8.6fs (%5.1f%%) | Speedup: %6.2fx | Eff: %6.2f | Verified: %s\n" \
-            "$P" "$TOTAL_TIME" "$COMP_TIME" "$COMM_TIME" "$COMM_PCT" "$SPEEDUP" "$EFFICIENCY" "$CORRECT"
-    done
-done
-
-echo ""
-echo "=========================================================="
-echo "Benchmarks Complete! Results saved to: $RESULT_FILE"
-echo "=========================================================="
