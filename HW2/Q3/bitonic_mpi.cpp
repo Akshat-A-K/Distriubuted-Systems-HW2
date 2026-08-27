@@ -131,10 +131,15 @@ int main(int argc, char *argv[]) {
             }
             local_data = next_data;
 
-            if (dir == 1) {
-                sort(local_data.begin(), local_data.end());
-            } else {
-                sort(local_data.begin(), local_data.end(), greater<int>());
+            // Only re-sort once this stage's LAST (finest) inner step is
+            // done. Sorting after an intermediate step destroys the
+            // bitonic structure the next, closer-distance step depends on.
+            if (step == 0) {
+                if (dir == 1) {
+                    sort(local_data.begin(), local_data.end());
+                } else {
+                    sort(local_data.begin(), local_data.end(), greater<int>());
+                }
             }
             t1 = MPI_Wtime();
             stagecomp_time += (t1 - t0);

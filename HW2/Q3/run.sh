@@ -31,6 +31,11 @@ cat > "$SCRIPT_DIR/build/sample_n8.txt" <<'EOF'
 5 3 8 1 9 2 7 4
 EOF
 
+cat > "$SCRIPT_DIR/build/sample_n16.txt" <<'EOF'
+16
+15 3 8 1 12 7 4 10 6 14 2 11 5 16 9 13
+EOF
+
 "$GEN_BIN" 8 42 > "$SCRIPT_DIR/build/edge_case.txt"
 "$GEN_BIN" 64 43 > "$SCRIPT_DIR/build/small_64.txt"
 "$GEN_BIN" 1024 44 > "$SCRIPT_DIR/build/medium_1024.txt"
@@ -38,13 +43,13 @@ EOF
 "$GEN_BIN" 1048576 46 > "$SCRIPT_DIR/build/large_max.txt"
 "$GEN_BIN" 4194304 47 > "$SCRIPT_DIR/build/very_large.txt"
 
-if [[ -n "${SLURM_JOB_ID:-}" ]] && command -v srun >/dev/null 2>&1; then
-	MPI_RUNNER=(mpirun --bind-to none --oversubscribe)
-	MPI_COUNT_FLAG="-np"
-else
-	MPI_RUNNER=(mpirun --bind-to none --oversubscribe)
-	MPI_COUNT_FLAG="-np"
-fi
+# On this cluster (RCE), srun's PMI handoff does not match the loaded
+# OpenMPI build (produces a PMI error). mpirun launched from inside an
+# active salloc/sbatch allocation reads SLURM's environment directly and
+# works correctly -- this is a standard, supported launch mode, not a
+# workaround. Confirmed empirically on job 79811 (8-task allocation).
+MPI_RUNNER=(mpirun --bind-to none --oversubscribe)
+MPI_COUNT_FLAG="-np"
 
 printf 'dataset,elements,processes,sequential_seconds,wall_seconds,algo_seconds,setup_seconds,scatter_seconds,initsort_seconds,stagecomm_seconds,stagecomp_seconds,gather_seconds,compute_seconds,comm_seconds,wall_speedup,wall_efficiency,algo_speedup,algo_efficiency,status\n' > "$RESULT_FILE"
 
@@ -120,6 +125,7 @@ benchmark() {
 echo "Running PDF sample, edge case, small, medium, large, and very large benchmarks..."
 benchmark pdf_example1 "$SCRIPT_DIR/build/sample_n4.txt" "1 2 3 4"
 benchmark pdf_example2 "$SCRIPT_DIR/build/sample_n8.txt" "1 2 3 4 5 7 8 9"
+benchmark sample_n16 "$SCRIPT_DIR/build/sample_n16.txt" "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"
 benchmark edge_case "$SCRIPT_DIR/build/edge_case.txt"
 benchmark small_64 "$SCRIPT_DIR/build/small_64.txt"
 benchmark medium_1024 "$SCRIPT_DIR/build/medium_1024.txt"
