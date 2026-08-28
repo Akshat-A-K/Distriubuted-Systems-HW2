@@ -37,6 +37,17 @@ The following table shows the best measured values for each graph. Wall time inc
 | Large maximum | 0.579336 | 2, 0.770264 | 0.752127 | 1.372756 |
 | Dense | 3.059672 | 8, 1.365551 | 2.240614 | 3.057074 |
 
+The following table reports normalized MPI wall-time speedup, using the measured `P=1` MPI wall time for each graph as the baseline. Thus, `S(1)=1.00` as required by the report format.
+
+| Input size | P=1 | P=2 | P=4 | P=8 |
+| --- | ---: | ---: | ---: | ---: |
+| PDF sample | 1.000 | 0.973 | 0.916 | 0.785 |
+| Edge case | 1.000 | 0.988 | 0.897 | 0.515 |
+| Small K4 | 1.000 | 0.995 | 0.893 | 0.797 |
+| Medium | 1.000 | 0.972 | 0.895 | 0.771 |
+| Large maximum | 1.000 | 3.808 | 2.905 | 2.767 |
+| Dense | 1.000 | 1.523 | 2.008 | 2.245 |
+
 ![MPI speedup](Q4/results/speedup_plot.svg)
 
 ![MPI algorithm speedup](Q4/results/algo_speedup_plot.svg)
@@ -49,7 +60,11 @@ The following table shows the best measured values for each graph. Wall time inc
 
 Small graph wall time is dominated by MPI process spawning, MPI initialization, and finalization rather than triangle computation. Sequential times are about 0.014-0.016 seconds, while the fastest MPI wall times are about 0.329-0.335 seconds. Algorithm-only speedup is more useful for comparing internal computation and communication, although very small timings remain sensitive to measurement noise.
 
+The normalized table isolates how the MPI implementation scales as processes are added. It is separate from the sequential-baseline speedup, which shows whether MPI is faster than the sequential binary at all.
+
 For `large_max`, the sequential time was 0.579 seconds. The best wall result was P=2 at 0.770 seconds, giving a speedup of 0.752. At P=8, the largest algorithm phase was setup/I/O and the initial broadcast at 0.510252 seconds. The adjacency broadcast took 0.123202 seconds, while local compute took only 0.000456 seconds. Therefore, startup and replicated-data communication, together with launcher overhead, are responsible for the poor scaling.
+
+The normalized values above 1.00 for `large_max` and `dense` reflect the unusually slow MPI `P=1` baseline. At P=1, one rank performs the full local-intersection loop; with more ranks, that compute work is divided across processes, so the measured MPI scaling can look superlinear even though MPI remains slower than the sequential binary for some cases.
 
 The current implementation broadcasts the complete oriented graph to every rank. This is simple and makes local intersections easy, but it uses more communication and memory than a truly partitioned-storage design in which each machine stores an equal-sized subset and exchanges required neighbor data.
 
