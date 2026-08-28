@@ -24,15 +24,15 @@ This creates `build/bitonic_seq`, `build/bitonic_mpi`, and `build/generate_data`
 Compile and run the sequential reference program with:
 
 ```bash
-g++ -O2 -std=c++17 bitonic_seq.cpp -o bitonic_seq
-./bitonic_seq example.txt
+g++ -O2 -std=c++17 bitonic_seq.cpp -o build/bitonic_seq
+./build/bitonic_seq example.txt
 ```
 
 Compile and run the MPI program with:
 
 ```bash
-mpicxx -O2 -std=c++17 bitonic_mpi.cpp -o bitonic_mpi
-mpirun -np 4 ./bitonic_mpi example.txt
+mpicxx -O2 -std=c++17 bitonic_mpi.cpp -o build/bitonic_mpi
+mpirun -np 4 ./build/bitonic_mpi example.txt
 ```
 
 The program prints the space-separated sorted sequence to standard output. Detailed MPI phase timings (setup, scatter, initial local sort, stage communication, stage computation, gather, total computation, total communication, and overall algorithm time) are printed to standard error with the `MPI_PHASES` prefix.
@@ -79,3 +79,9 @@ The script reads the newest benchmark CSV in `results/`, validates that all proc
 - `mpi_runtime_plot.svg` - MPI runtime plot
 
 The script uses only the Python standard library. The generated SVG plots can be viewed in any browser or directly embedded into markdown reports.
+
+On the RCE cluster, load the OpenMPI module before building and running:
+
+```bash
+module load hpcx-2.7.0/hpcx-ompi
+```

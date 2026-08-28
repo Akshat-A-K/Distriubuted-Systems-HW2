@@ -79,3 +79,9 @@ The script automatically reads the newest CSV in `results/`. It checks that tria
 - `mpi_runtime_plot.svg` - MPI runtime plot
 
 The script uses only the Python standard library. SVG plots can be opened in a browser or inserted into the report.
+
+On the RCE cluster, load the OpenMPI module before building and running:
+
+```bash
+module load hpcx-2.7.0/hpcx-ompi
+```

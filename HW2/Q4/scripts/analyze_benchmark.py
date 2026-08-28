@@ -49,7 +49,7 @@ DETAIL_COLUMNS = [
 ]
 
 
-def find_input(results_dir: Path, requested: str | None) -> Path:
+def find_input(results_dir: Path, requested):
     if requested:
         input_path = Path(requested)
         if not input_path.is_absolute():
@@ -68,7 +68,7 @@ def find_input(results_dir: Path, requested: str | None) -> Path:
     return max(candidates, key=lambda path: path.stat().st_mtime)
 
 
-def read_rows(input_path: Path) -> list[dict[str, object]]:
+def read_rows(input_path: Path):
     with input_path.open(newline="", encoding="utf-8") as input_file:
         reader = csv.DictReader(input_file)
         columns = set(reader.fieldnames or [])
@@ -109,15 +109,15 @@ def read_rows(input_path: Path) -> list[dict[str, object]]:
     return rows
 
 
-def write_csv(path: Path, fieldnames: list[str], rows: list[dict[str, object]]) -> None:
+def write_csv(path: Path, fieldnames, rows):
     with path.open("w", newline="", encoding="utf-8") as output_file:
         writer = csv.DictWriter(output_file, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
 
 
-def analyze(rows: list[dict[str, object]]) -> list[dict[str, object]]:
-    groups: dict[str, list[dict[str, object]]] = {}
+def analyze(rows):
+    groups = {}
     for row in rows:
         groups.setdefault(str(row["graph"]), []).append(row)
 
@@ -152,7 +152,7 @@ def analyze(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     return summaries
 
 
-def write_report(path: Path, input_path: Path, rows: list[dict[str, object]], summaries: list[dict[str, object]]) -> None:
+def write_report(path: Path, input_path: Path, rows, summaries):
     largest_graph = max(summaries, key=lambda summary: int(summary["edges"]))
     largest_rows = [row for row in rows if row["graph"] == largest_graph["graph"]]
     largest_row = max(largest_rows, key=lambda row: int(row["processes"]))
@@ -185,7 +185,7 @@ def write_report(path: Path, input_path: Path, rows: list[dict[str, object]], su
             )
 
 
-def write_plots(results_dir: Path, rows: list[dict[str, object]]) -> None:
+def write_plots(results_dir: Path, rows):
     graph_names = list(dict.fromkeys(str(row["graph"]) for row in rows))
     process_counts = sorted({int(row["processes"]) for row in rows})
 
@@ -200,13 +200,13 @@ def write_plots(results_dir: Path, rows: list[dict[str, object]]) -> None:
         if math.isclose(minimum, maximum):
             maximum = minimum + 1.0
 
-        def x_position(processes: int) -> float:
+        def x_position(processes):
             if len(process_counts) == 1:
                 return left + plot_width / 2
             index = process_counts.index(processes)
             return left + index * plot_width / (len(process_counts) - 1)
 
-        def y_position(value: float) -> float:
+        def y_position(value):
             return top + (maximum - value) * plot_height / (maximum - minimum)
 
         colors = ["#1769aa", "#d1495b", "#2a9d8f", "#e09f3e", "#6c4f9d"]

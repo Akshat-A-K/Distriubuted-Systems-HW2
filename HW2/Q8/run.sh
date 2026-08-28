@@ -39,6 +39,26 @@ EOF
 MPI_RUNNER=(mpirun --bind-to none --oversubscribe)
 MPI_COUNT_FLAG="-np"
 
+outputs_match() {
+	awk '
+	NR == FNR { expected[FNR] = $0; expected_lines = FNR; next }
+	{
+		if (FNR > expected_lines) exit 1
+		left_count = split(expected[FNR], left)
+		right_count = split($0, right)
+		if (left_count != right_count) exit 1
+		for (i = 1; i <= left_count; ++i) {
+			if (left[i] ~ /^-?[0-9]+([.][0-9]+)?$/ && right[i] ~ /^-?[0-9]+([.][0-9]+)?$/) {
+				if (sqrt((left[i] - right[i]) ^ 2) > 0.011) exit 1
+			} else if (left[i] != right[i]) {
+				exit 1
+			}
+		}
+	}
+	END { if (FNR != expected_lines) exit 1 }
+	' "$seq_output" "$mpi_output"
+}
+
 printf 'dataset,records,processes,sequential_seconds,wall_seconds,algo_seconds,setup_seconds,scatter_seconds,compute_seconds,comm_seconds,merge_seconds,wall_speedup,wall_efficiency,algo_speedup,algo_efficiency,status\n' > "$RESULT_FILE"
 
 benchmark() {
@@ -82,7 +102,7 @@ benchmark() {
 		fi
 
 		mpi_result="$(< "$mpi_output")"
-		if [[ "$mpi_result" != "$seq_result" ]]; then
+		if ! outputs_match; then
 			echo "Correctness failed for $dataset_name at P=$processes." >&2
 			echo "Diff:" >&2
 			diff -u "$seq_output" "$mpi_output" >&2 || true

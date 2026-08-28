@@ -1,0 +1,6 @@
+dataset,records,sequential_seconds,fastest_mpi_processes,fastest_mpi_seconds,best_wall_speedup_processes,best_wall_speedup,best_algo_speedup_processes,best_algo_speedup,best_efficiency_processes,best_efficiency
+sample_q8,5,0.002778559,1,0.167677975,1,0.016571,1,41.794783,1,0.016571
+small_100,100,0.002965829,1,0.161849486,1,0.018325,1,13.675734,1,0.018325
+medium_10k,10000,0.016759853,1,0.173228974,1,0.09675,1,1.220087,1,0.09675
+large_100k,100000,0.131702438,1,0.295348706,1,0.445922,2,1.002958,1,0.445922
+large_1m,1000000,1.273702632,2,1.534062993,2,0.830281,2,0.968875,1,0.828435

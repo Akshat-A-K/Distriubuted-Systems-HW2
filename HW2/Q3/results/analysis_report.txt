@@ -1,0 +1,17 @@
+Input: benchmark_20260828_014311.csv
+Benchmark rows: 31
+Dataset cases: 8
+All test cases passed sequential correctness verification.
+
+Small datasets: wall-clock results include process spawn, MPI initialization, and teardown, which dominate the sort computation. Algorithm-only timings remove launcher overhead.
+Largest dataset (4194304 elements): at P=8, dominant phase was setup and broadcast (0.454765 seconds).
+
+Dataset | Elements | Fastest MPI P | Wall seconds | Best wall speedup P | Best wall speedup | Best algorithm speedup P | Best algorithm speedup | Best wall efficiency P | Best wall efficiency
+pdf_example1 | 4 | 2 | 0.182489847 | 2 | 0.012121 | 1 | 7.802978 | 1 | 0.011487
+pdf_example2 | 8 | 1 | 0.174652981 | 1 | 0.012699 | 1 | 5.843816 | 1 | 0.012699
+edge_case | 8 | 1 | 0.174492092 | 1 | 0.012612 | 2 | 6.703739 | 1 | 0.012612
+small_64 | 64 | 1 | 0.179425321 | 1 | 0.01234 | 2 | 5.662264 | 1 | 0.01234
+medium_1024 | 1024 | 1 | 0.180843475 | 1 | 0.013343 | 1 | 7.144643 | 1 | 0.013343
+large_65k | 65536 | 1 | 0.185221532 | 1 | 0.088619 | 2 | 2.001217 | 1 | 0.088619
+large_max | 1048576 | 1 | 0.418622533 | 1 | 0.524535 | 2 | 1.652123 | 1 | 0.524535
+very_large | 4194304 | 2 | 1.122260879 | 2 | 0.790128 | 2 | 1.611175 | 1 | 0.752759
