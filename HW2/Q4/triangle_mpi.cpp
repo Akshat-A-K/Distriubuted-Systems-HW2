@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
         MPI_Finalize();
         return 1;
     }
-
+    }
     double setup_start = MPI_Wtime();
     int vertices = 0;
     int edge_count = 0;
@@ -263,4 +263,3 @@ int main(int argc, char* argv[]) {
     MPI_Finalize();
     return 0;
 }
-h
