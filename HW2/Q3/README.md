@@ -35,7 +35,7 @@ mpicxx -O2 -std=c++17 bitonic_mpi.cpp -o build/bitonic_mpi
 mpirun -np 4 ./build/bitonic_mpi example.txt
 ```
 
-The program prints the space-separated sorted sequence to standard output. Detailed MPI phase timings (setup, scatter, initial local sort, stage communication, stage computation, gather, total computation, total communication, and overall algorithm time) are printed to standard error with the `MPI_PHASES` prefix.
+The program prints the space-separated sorted sequence to standard output. Detailed MPI phase timings are printed to standard error with the `MPI_PHASES` prefix; the benchmark script records only the aggregate computation and communication times from that line.
 
 ### Reproducible tests and benchmarks
 
@@ -58,7 +58,7 @@ The script generates these fixed-seed cases:
 | Large maximum | 1,048,576 | Seed 46 |
 | Very large | 4,194,304 | Seed 47 |
 
-Each case is verified against sequential sorting and run with MPI using $P \in \{1, 2, 4, 8\}$. Small cases use repeated runs to reduce measurement noise. Benchmark CSV files record high-resolution wall time, MPI algorithm time, individual phase breakdowns, wall/algorithm speedups, efficiencies, and correctness status (`PASS`).
+Each case is verified against sequential sorting and run with MPI using $P \in \{1, 2, 4, 8\}$. Small cases use repeated runs to reduce measurement noise. Benchmark CSV files record sequential and wall-clock time, aggregate computation/communication time, speedup, efficiency, and correctness status (`PASS`).
 
 ### Analyze results and create plots
 
@@ -70,13 +70,11 @@ python3 scripts/analyze_benchmark.py
 
 The script reads the newest benchmark CSV in `results/`, validates that all process counts pass verification, and generates:
 
-- `analysis_detail.csv` - comprehensive benchmark metrics table
+- `analysis_detail.csv` - benchmark metrics table
 - `analysis_summary.csv` - one summary row per dataset
 - `analysis_report.txt` - textual performance breakdown
-- `speedup_plot.svg` - wall-clock speedup plot
-- `algo_speedup_plot.svg` - algorithm-only speedup plot
+- `speedup_plot.svg` - speedup plot
 - `efficiency_plot.svg` - efficiency plot
-- `mpi_runtime_plot.svg` - MPI runtime plot
 
 The script uses only the Python standard library. The generated SVG plots can be viewed in any browser or directly embedded into markdown reports.
 

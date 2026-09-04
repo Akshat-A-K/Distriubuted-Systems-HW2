@@ -59,14 +59,13 @@ outputs_match() {
 	' "$seq_output" "$mpi_output"
 }
 
-printf 'dataset,records,processes,sequential_seconds,wall_seconds,algo_seconds,setup_seconds,scatter_seconds,compute_seconds,comm_seconds,merge_seconds,wall_speedup,wall_efficiency,algo_speedup,algo_efficiency,status\n' > "$RESULT_FILE"
+printf 'dataset,records,processes,sequential_seconds,wall_seconds,compute_seconds,comm_seconds,speedup,efficiency,status\n' > "$RESULT_FILE"
 
 benchmark() {
 	local dataset_name="$1"
 	local input_file="$2"
-	local records k s seq_seconds seq_result processes wall_seconds algo_seconds setup_seconds scatter_seconds
-	local compute_seconds comm_seconds merge_seconds
-	local mpi_result wall_speedup wall_efficiency algo_speedup algo_efficiency phase_line
+	local records k s seq_seconds seq_result processes wall_seconds compute_seconds comm_seconds
+	local mpi_result speedup efficiency phase_line
 	local seq_output="$SCRIPT_DIR/build/seq_output.txt"
 	local mpi_output="$SCRIPT_DIR/build/mpi_output.txt"
 	local mpi_log="$SCRIPT_DIR/build/mpi_log.txt"
@@ -93,9 +92,9 @@ benchmark() {
 		done | awk '{ total += $1 } END { printf "%.9f", total / NR / 1000000000 }')"
 
 		phase_line="$(grep 'MPI_PHASES ' "$mpi_log" | tail -n 1)"
-		read -r setup_seconds scatter_seconds compute_seconds comm_seconds merge_seconds algo_seconds <<< "$(printf '%s\n' "$phase_line" | awk '{ for (i = 2; i <= NF; i++) { split($i, value, "="); metrics[value[1]] = value[2] } printf "%s %s %s %s %s %s", metrics["setup"], metrics["scatter"], metrics["compute"], metrics["comm"], metrics["merge"], metrics["algo"] }')"
+		read -r compute_seconds comm_seconds <<< "$(printf '%s\n' "$phase_line" | awk '{ for (i = 2; i <= NF; i++) { split($i, value, "="); metrics[value[1]] = value[2] } printf "%s %s", metrics["compute"], metrics["comm"] }')"
 
-		if [[ -z "$algo_seconds" ]]; then
+		if [[ -z "$compute_seconds" ]]; then
 			echo "MPI phase timing output missing for $dataset_name at P=$processes." >&2
 			echo "Expected a line beginning with MPI_PHASES in $mpi_log." >&2
 			exit 1
@@ -109,15 +108,12 @@ benchmark() {
 			exit 1
 		fi
 
-		wall_speedup="$(awk "BEGIN { printf \"%.6f\", $seq_seconds / $wall_seconds }")"
-		wall_efficiency="$(awk "BEGIN { printf \"%.6f\", $wall_speedup / $processes }")"
-		algo_speedup="$(awk "BEGIN { printf \"%.6f\", $seq_seconds / $algo_seconds }")"
-		algo_efficiency="$(awk "BEGIN { printf \"%.6f\", $algo_speedup / $processes }")"
+		speedup="$(awk "BEGIN { printf \"%.6f\", $seq_seconds / $wall_seconds }")"
+		efficiency="$(awk "BEGIN { printf \"%.6f\", $speedup / $processes }")"
 
-		printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,PASS\n' \
-			"$dataset_name" "$records" "$processes" "$seq_seconds" "$wall_seconds" "$algo_seconds" \
-			"$setup_seconds" "$scatter_seconds" "$compute_seconds" "$comm_seconds" "$merge_seconds" \
-			"$wall_speedup" "$wall_efficiency" "$algo_speedup" "$algo_efficiency" >> "$RESULT_FILE"
+		printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,PASS\n' \
+			"$dataset_name" "$records" "$processes" "$seq_seconds" "$wall_seconds" \
+			"$compute_seconds" "$comm_seconds" "$speedup" "$efficiency" >> "$RESULT_FILE"
 	done
 	echo "$dataset_name: $records records verified across all P"
 }

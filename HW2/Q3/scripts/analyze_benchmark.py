@@ -14,19 +14,10 @@ REQUIRED_COLUMNS = {
     "processes",
     "sequential_seconds",
     "wall_seconds",
-    "algo_seconds",
-    "setup_seconds",
-    "scatter_seconds",
-    "initsort_seconds",
-    "stagecomm_seconds",
-    "stagecomp_seconds",
-    "gather_seconds",
     "compute_seconds",
     "comm_seconds",
-    "wall_speedup",
-    "wall_efficiency",
-    "algo_speedup",
-    "algo_efficiency",
+    "speedup",
+    "efficiency",
     "status",
 }
 
@@ -36,19 +27,10 @@ DETAIL_COLUMNS = [
     "processes",
     "sequential_seconds",
     "wall_seconds",
-    "algo_seconds",
-    "setup_seconds",
-    "scatter_seconds",
-    "initsort_seconds",
-    "stagecomm_seconds",
-    "stagecomp_seconds",
-    "gather_seconds",
     "compute_seconds",
     "comm_seconds",
-    "wall_speedup",
-    "wall_efficiency",
-    "algo_speedup",
-    "algo_efficiency",
+    "speedup",
+    "efficiency",
     "status",
 ]
 
@@ -92,19 +74,10 @@ def read_rows(input_path):
                         "processes": int(row["processes"]),
                         "sequential_seconds": float(row["sequential_seconds"]),
                         "wall_seconds": float(row["wall_seconds"]),
-                        "algo_seconds": float(row["algo_seconds"]),
-                        "setup_seconds": float(row["setup_seconds"]),
-                        "scatter_seconds": float(row["scatter_seconds"]),
-                        "initsort_seconds": float(row["initsort_seconds"]),
-                        "stagecomm_seconds": float(row["stagecomm_seconds"]),
-                        "stagecomp_seconds": float(row["stagecomp_seconds"]),
-                        "gather_seconds": float(row["gather_seconds"]),
                         "compute_seconds": float(row["compute_seconds"]),
                         "comm_seconds": float(row["comm_seconds"]),
-                        "wall_speedup": float(row["wall_speedup"]),
-                        "wall_efficiency": float(row["wall_efficiency"]),
-                        "algo_speedup": float(row["algo_speedup"]),
-                        "algo_efficiency": float(row["algo_efficiency"]),
+                        "speedup": float(row["speedup"]),
+                        "efficiency": float(row["efficiency"]),
                         "status": row["status"],
                     }
                 )
@@ -136,9 +109,8 @@ def analyze(rows):
         if statuses != {"PASS"}:
             raise ValueError("Correctness verification failed for {}: {}".format(dataset, statuses))
 
-        best_wall_speedup = max(dataset_rows, key=lambda row: float(row["wall_speedup"]))
-        best_algo_speedup = max(dataset_rows, key=lambda row: float(row["algo_speedup"]))
-        best_efficiency = max(dataset_rows, key=lambda row: float(row["wall_efficiency"]))
+        best_speedup = max(dataset_rows, key=lambda row: float(row["speedup"]))
+        best_efficiency = max(dataset_rows, key=lambda row: float(row["efficiency"]))
         fastest_mpi = min(dataset_rows, key=lambda row: float(row["wall_seconds"]))
         first_row = dataset_rows[0]
         summaries.append(
@@ -148,12 +120,10 @@ def analyze(rows):
                 "sequential_seconds": first_row["sequential_seconds"],
                 "fastest_mpi_processes": fastest_mpi["processes"],
                 "fastest_mpi_seconds": fastest_mpi["wall_seconds"],
-                "best_wall_speedup_processes": best_wall_speedup["processes"],
-                "best_wall_speedup": best_wall_speedup["wall_speedup"],
-                "best_algo_speedup_processes": best_algo_speedup["processes"],
-                "best_algo_speedup": best_algo_speedup["algo_speedup"],
+                "best_speedup_processes": best_speedup["processes"],
+                "best_speedup": best_speedup["speedup"],
                 "best_efficiency_processes": best_efficiency["processes"],
-                "best_efficiency": best_efficiency["wall_efficiency"],
+                "best_efficiency": best_efficiency["efficiency"],
             }
         )
     return summaries
@@ -164,34 +134,27 @@ def write_report(path, input_path, rows, summaries):
     largest_dataset = max(summaries, key=lambda summary: int(summary["elements"]))
     largest_rows = [row for row in rows if row["dataset"] == largest_dataset["dataset"]]
     largest_row = max(largest_rows, key=lambda row: int(row["processes"]))
-    phase_names = {
-        "setup_seconds": "setup and broadcast",
-        "scatter_seconds": "Scatter",
-        "initsort_seconds": "Initial local sort",
-        "stagecomm_seconds": "Stage communication (Sendrecv)",
-        "stagecomp_seconds": "Stage compare-exchange & local sorts",
-        "gather_seconds": "Gather",
-    }
-    dominant_phase = max(phase_names, key=lambda phase: float(largest_row[phase]))
+    compute_time = float(largest_row["compute_seconds"])
+    comm_time = float(largest_row["comm_seconds"])
+    dominant = "computation" if compute_time >= comm_time else "communication"
     with path.open("w", encoding="utf-8") as report:
         report.write("Input: {}\n".format(input_path.name))
         report.write("Benchmark rows: {}\n".format(len(rows)))
         report.write("Dataset cases: {}\n".format(len(summaries)))
         report.write("All test cases passed sequential correctness verification.\n\n")
-        report.write("Small datasets: wall-clock results include process spawn, MPI initialization, and teardown, which dominate the sort computation. Algorithm-only timings remove launcher overhead.\n")
+        report.write("Small datasets: wall-clock results include process spawn, MPI initialization, and teardown, which dominate the sort computation.\n")
         report.write(
-            "Largest dataset ({} elements): at P={}, dominant phase was {} ({} seconds).\n\n".format(
-                largest_dataset["elements"], largest_row["processes"], phase_names[dominant_phase], largest_row[dominant_phase]
+            "Largest dataset ({} elements): at P={}, {} dominated (compute={:.6f}s, comm={:.6f}s).\n\n".format(
+                largest_dataset["elements"], largest_row["processes"], dominant, compute_time, comm_time
             )
         )
-        report.write("Dataset | Elements | Fastest MPI P | Wall seconds | Best wall speedup P | Best wall speedup | Best algorithm speedup P | Best algorithm speedup | Best wall efficiency P | Best wall efficiency\n")
+        report.write("Dataset | Elements | Fastest MPI P | Wall seconds | Best speedup P | Best speedup | Best efficiency P | Best efficiency\n")
         for summary in summaries:
             report.write(
-                "{} | {} | {} | {} | {} | {} | {} | {} | {} | {}\n".format(
+                "{} | {} | {} | {} | {} | {} | {} | {}\n".format(
                     summary["dataset"], summary["elements"],
                     summary["fastest_mpi_processes"], summary["fastest_mpi_seconds"],
-                    summary["best_wall_speedup_processes"], summary["best_wall_speedup"],
-                    summary["best_algo_speedup_processes"], summary["best_algo_speedup"],
+                    summary["best_speedup_processes"], summary["best_speedup"],
                     summary["best_efficiency_processes"], summary["best_efficiency"],
                 )
             )
@@ -262,10 +225,8 @@ def write_plots(results_dir, rows):
         svg.append("</svg>")
         (results_dir / filename).write_text("\n".join(svg), encoding="utf-8")
 
-    plot_metric("wall_speedup", "Q3 MPI Wall Speedup", "Speedup", "speedup_plot.svg")
-    plot_metric("algo_speedup", "Q3 MPI Algorithm Speedup", "Speedup", "algo_speedup_plot.svg")
-    plot_metric("wall_efficiency", "Q3 MPI Wall Efficiency", "Efficiency", "efficiency_plot.svg")
-    plot_metric("wall_seconds", "Q3 MPI Wall Runtime", "Time (seconds)", "mpi_runtime_plot.svg")
+    plot_metric("speedup", "Q3 MPI Speedup", "Speedup", "speedup_plot.svg")
+    plot_metric("efficiency", "Q3 MPI Efficiency", "Efficiency", "efficiency_plot.svg")
 
 
 def main():

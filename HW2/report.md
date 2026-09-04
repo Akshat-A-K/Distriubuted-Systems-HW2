@@ -8,12 +8,13 @@ The Q3 program sorts an integer sequence with distributed bitonic sort. Rank 0 r
 
 ### Correctness
 
-The benchmark CSV contains 31 rows covering eight datasets. Every row has `status=PASS`, and the MPI output exactly matched sequential `std::sort`. The PDF examples, generated edge case, and datasets up to 4,194,304 elements were tested. A development error that sorted after every inner merge step was fixed by sorting only after the final inner step; this was specifically tested at `N=16,P=4` and then across the full benchmark.
+The benchmark CSV contains 35 rows covering nine datasets. Every row has `status=PASS`, and the MPI output exactly matched sequential `std::sort`. The PDF examples, the `N=16` manual-verification case, a generated edge case, and datasets up to 4,194,304 elements were tested. A development error that sorted after every inner merge step was fixed by sorting only after the final inner step.
 
 | Dataset | N | Process counts | Result |
 | --- | ---: | --- | --- |
 | pdf_example1 | 4 | 1, 2, 4 | PASS |
 | pdf_example2 | 8 | 1, 2, 4, 8 | PASS |
+| sample_n16 | 16 | 1, 2, 4, 8 | PASS |
 | edge_case | 8 | 1, 2, 4, 8 | PASS |
 | small_64 | 64 | 1, 2, 4, 8 | PASS |
 | medium_1024 | 1,024 | 1, 2, 4, 8 | PASS |
@@ -21,36 +22,29 @@ The benchmark CSV contains 31 rows covering eight datasets. Every row has `statu
 | large_max | 1,048,576 | 1, 2, 4, 8 | PASS |
 | very_large | 4,194,304 | 1, 2, 4, 8 | PASS |
 
-### Wall-clock speed-up
+### Speed-up
 
-Speed-up is $S(P)=T_1/T_P$. Values below 1 mean the MPI run was slower than the sequential baseline.
-
-| N | P=1 | P=2 | P=4 | P=8 |
-| ---: | ---: | ---: | ---: | ---: |
-| 4 | 0.0115 | 0.0121 | 0.0107 | -- |
-| 8, PDF | 0.0127 | 0.0117 | 0.0109 | 0.0082 |
-| 8, edge | 0.0126 | 0.0118 | 0.0107 | 0.0084 |
-| 64 | 0.0123 | 0.0120 | 0.0104 | 0.0084 |
-| 1,024 | 0.0133 | 0.0133 | 0.0115 | 0.0090 |
-| 65,536 | 0.0886 | 0.0757 | 0.0691 | 0.0591 |
-| 1,048,576 | 0.5245 | 0.4154 | 0.3662 | 0.3251 |
-| 4,194,304 | 0.7528 | 0.7901 | 0.5362 | 0.6511 |
-
-The wall-clock speed-up stayed below 1 for every case because each MPI run includes process launch, MPI initialization, file parsing, communication, and finalization.
-
-### Algorithm-only speed-up and efficiency
+Speed-up is $S(P)=T_1/T_P$, using wall-clock time (process launch through exit) for both the sequential and MPI runs. Values below 1 mean the MPI run was slower end to end than the sequential baseline.
 
 | N | P=1 | P=2 | P=4 | P=8 |
 | ---: | ---: | ---: | ---: | ---: |
-| 65,536 | 1.68 | 2.00 | 1.18 | 1.42 |
-| 1,048,576 | 1.55 | 1.65 | 1.08 | 1.25 |
-| 4,194,304 | 1.53 | 1.61 | 1.13 | 1.24 |
+| 4 | 0.0118 | 0.0117 | 0.0106 | -- |
+| 8, PDF | 0.0122 | 0.0120 | 0.0105 | 0.0084 |
+| 16 | 0.0125 | 0.0120 | 0.0106 | 0.0086 |
+| 8, edge | 0.0125 | 0.0121 | 0.0106 | 0.0084 |
+| 64 | 0.0127 | 0.0122 | 0.0106 | 0.0084 |
+| 1,024 | 0.0140 | 0.0133 | 0.0118 | 0.0092 |
+| 65,536 | 0.0853 | 0.0811 | 0.0733 | 0.0644 |
+| 1,048,576 | 0.5248 | 0.3768 | 0.4234 | 0.3908 |
+| 4,194,304 | 0.7701 | 0.7854 | 0.7019 | 0.6186 |
 
-Algorithm-only efficiency $E(P)=S(P)/P$ for the same large cases was approximately 1.68/1.00/0.30/0.18, 1.55/0.83/0.27/0.16, and 1.53/0.81/0.28/0.16 for P=1/2/4/8 respectively. The best algorithm-only speed-up was about 2.00 at P=2 for 65K elements. The plots are in `Q3/results/`.
+The speed-up stayed below 1 for every case because each MPI run includes process launch, MPI initialization, file parsing, communication, and finalization, which the sequential baseline does not pay. `speedup_plot.svg` and `efficiency_plot.svg` in `Q3/results/` plot these two tables directly.
 
 ### Communication and computation
 
-For the largest case at P=8, setup and input broadcast was the dominant phase at 0.454765 seconds. Rank 0 reads the complete file before scattering, creating a serial bottleneck. The hypercube compare-exchange adds communication at every bitonic stage, and process launch overhead further increases wall time. A future improvement would use parallel file-range reads or a binary input format so that input parsing also scales.
+The MPI program separately times local computation (initial sort plus the compare-exchange/re-sort work at each bitonic stage) and communication (the `MPI_Sendrecv` chunk exchanges), reported as `compute_seconds`/`comm_seconds` in the benchmark CSV. For the largest case (4,194,304 elements), these do not move monotonically with P: `compute_seconds` is 0.300s at P=1, rises to 0.306s at P=2 and 0.327s at P=4, then drops to 0.216s at P=8; `comm_seconds` is 0.007s at P=1, rises to 0.012s at P=2, spikes to 0.118s at P=4 — nearly 3x higher than at P=8 (0.040s) — then falls back down. This is not a clean "compute shrinks / communication grows" trend as P increases.
+
+`Q3/submit_bitonic.sh` requests `--nodes=1`, and `run.sh` launches every P value with `mpirun --bind-to none --oversubscribe` inside that single-node allocation, so the P=1, 2, 4, and 8 runs all contend for the same physical cores rather than gaining more hardware as P increases. The non-monotonic swings above are more consistent with core-contention/scheduling noise from that oversubscription than with an algorithmic effect. This measured compute/comm split also excludes process launch and MPI initialization, a separate, fixed per-run cost that is the main reason wall-clock speed-up stays below 1 regardless of this noise. A future improvement would use parallel file-range reads or a binary input format so that rank 0's serial file parsing also scales with P, and running across multiple physical nodes would let P actually add hardware parallelism instead of oversubscribing one node.
 
 ### Reproducibility
 
@@ -120,11 +114,11 @@ The benchmark contains 20 rows covering five datasets and P=1,2,4,8. All rows re
 | 100,000 | 0.4459 | 0.4397 | 0.3459 | 0.2471 |
 | 1,000,000 | 0.8284 | 0.8303 | 0.7963 | 0.7324 |
 
-These are wall-clock speed-ups using the sequential program as $T_1$. The best wall result was 0.830 at P=2 for one million records, so MPI was still slower end to end. Algorithm-only speed-up for one million records was 0.956 at P=1, 0.969 at P=2, 0.945 at P=4, and 0.920 at P=8. Algorithm-only efficiency was 0.956, 0.484, 0.236, and 0.115 respectively.
+These are speed-ups $S(P)=T_1/T_P$ using wall-clock time (process launch through exit) with the sequential program as $T_1$. The best result was 0.830 at P=2 for one million records, so MPI was still slower end to end for every tested size; each MPI run pays process launch, initialization, and teardown overhead that the sequential baseline does not. `speedup_plot.svg` and `efficiency_plot.svg` in `Q8/results/` plot these values.
 
 ### Communication and computation
 
-For one million records at P=8, setup and header broadcast was the dominant measured phase at about 1.339 seconds. Rank 0 performs formatted input parsing before `MPI_Scatterv`, so the main data-loading work remains serial. Communication and final merge also increase with P, while the per-rank aggregation work becomes smaller. This explains why adding processes does not improve total runtime for the tested sizes.
+The MPI program separately times local per-rank aggregation (`compute_seconds`) and the gather/reduce/`Gatherv` merge of partial statistics (`comm_seconds`). For the largest dataset (1,000,000 records) at P=8, communication (0.009855s) slightly exceeded local computation (0.006249s): as P grows, each rank's share of records shrinks, so per-rank aggregation gets cheaper while more partial results must be merged across more ranks. This split excludes rank 0's serial, formatted input parsing before `MPI_Scatterv`, which is a fixed per-run cost independent of P and is the main reason wall-clock speed-up stays below 1 for the tested sizes.
 
 ### Reproducibility and PDF compliance
 
