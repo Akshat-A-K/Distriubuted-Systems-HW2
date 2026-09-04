@@ -35,7 +35,7 @@ static vector<int> prefix_displacements(const vector<int>& counts) {
 }
 
 static int owner_of(int vertex, int vertices, int processes) {
-    return min(processes - 1, vertex * processes / vertices);
+    return min(processes - 1, ((vertex + 1) * processes - 1) / vertices);
 }
 
 int main(int argc, char* argv[]) {
@@ -263,3 +263,4 @@ int main(int argc, char* argv[]) {
     MPI_Finalize();
     return 0;
 }
+h
