@@ -1,17 +1,17 @@
-Input: benchmark_20260824_113648.csv
+Input: benchmark_20260904_201321.csv
 Benchmark rows: 24
 Graph cases: 6
 Triangle counts are consistent across all process counts.
 
 Small graphs: wall-clock results include process spawn, MPI initialization, and teardown, which dominate their small computation. Algorithm-only timings remove launcher overhead and are the better comparison for this scale.
-Largest graph: at P=8, the largest measured algorithm phase was setup/I/O and initial broadcast (0.510252 seconds). Wall-clock scaling also includes launcher overhead.
-Storage trade-off: the current implementation broadcasts the full oriented graph to every rank, which simplifies local intersections but adds communication and memory cost. A truly partitioned-storage design would better match the equal-sized-subset requirement, but would need remote-neighbor data exchange.
+Largest graph: at P=8, the largest measured algorithm phase was setup/I/O and initial broadcast (0.155404 seconds). Wall-clock scaling also includes launcher overhead.
+Storage design: forward adjacency lists are partitioned by contiguous vertex ranges. Each rank stores its owned lists and exchanges only endpoint lists required by its local edge partition.
 Dense-case expectation: the added dense graph exercises the forward-counting algorithm near its O(E^1.5) worst-case behavior, so its timing is expected to be substantially higher than sparse cases.
 
 Graph | Triangles | Fastest MPI P | Wall seconds | Best wall speedup P | Best wall speedup | Best algorithm speedup P | Best algorithm speedup | Best wall efficiency P | Best wall efficiency
-pdf_example | 2 | 1 | 0.332327648 | 1 | 0.047382 | 1 | 4.448372 | 1 | 0.047382
-edge_case | 1 | 1 | 0.333538289 | 1 | 0.040527 | 2 | 14.119329 | 1 | 0.040527
-small_k4 | 4 | 1 | 0.335447815 | 1 | 0.046302 | 2 | 5.769235 | 1 | 0.046302
-medium_500 | 1284 | 1 | 0.328634566 | 1 | 0.050837 | 1 | 5.157691 | 1 | 0.050837
-large_max | 1300 | 2 | 0.770263548 | 2 | 0.752127 | 2 | 1.372756 | 2 | 0.376063
-dense_1500 | 395056429 | 8 | 1.365550757 | 8 | 2.240614 | 8 | 3.057074 | 1 | 0.997851
+pdf_example | 2 | 1 | 0.166709394 | 1 | 0.015786 | 1 | 63.225855 | 1 | 0.015786
+edge_case | 1 | 1 | 0.155513236 | 1 | 0.016822 | 1 | 55.424386 | 1 | 0.016822
+small_k4 | 4 | 1 | 0.158274731 | 1 | 0.017126 | 1 | 70.84838 | 1 | 0.017126
+medium_500 | 1284 | 1 | 0.162122703 | 1 | 0.024829 | 2 | 2.541768 | 1 | 0.024829
+large_max | 1300 | 4 | 0.568366198 | 4 | 0.542484 | 8 | 1.111611 | 1 | 0.454993
+dense_1500 | 395056429 | 8 | 1.003551469 | 8 | 4.119997 | 8 | 6.313336 | 1 | 1.097359

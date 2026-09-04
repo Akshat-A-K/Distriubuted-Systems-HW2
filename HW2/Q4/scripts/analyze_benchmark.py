@@ -172,7 +172,7 @@ def write_report(path: Path, input_path: Path, rows, summaries):
         report.write("Triangle counts are consistent across all process counts.\n\n")
         report.write("Small graphs: wall-clock results include process spawn, MPI initialization, and teardown, which dominate their small computation. Algorithm-only timings remove launcher overhead and are the better comparison for this scale.\n")
         report.write(f"Largest graph: at P={largest_row['processes']}, the largest measured algorithm phase was {phase_names[dominant_phase]} ({largest_row[dominant_phase]} seconds). Wall-clock scaling also includes launcher overhead.\n")
-        report.write("Storage trade-off: the current implementation broadcasts the full oriented graph to every rank, which simplifies local intersections but adds communication and memory cost. A truly partitioned-storage design would better match the equal-sized-subset requirement, but would need remote-neighbor data exchange.\n")
+        report.write("Storage design: forward adjacency lists are partitioned by contiguous vertex ranges. Each rank stores its owned lists and exchanges only endpoint lists required by its local edge partition.\n")
         report.write("Dense-case expectation: the added dense graph exercises the forward-counting algorithm near its O(E^1.5) worst-case behavior, so its timing is expected to be substantially higher than sparse cases.\n\n")
         report.write("Graph | Triangles | Fastest MPI P | Wall seconds | Best wall speedup P | Best wall speedup | Best algorithm speedup P | Best algorithm speedup | Best wall efficiency P | Best wall efficiency\n")
         for summary in summaries:

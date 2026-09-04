@@ -1,6 +1,6 @@
 ## Q4: Triangle Counting
 
-This solution counts triangles in an undirected graph. Each MPI process receives a distinct subset of edges. The graph orientation is based on vertex degree and vertex ID, so every triangle is counted exactly once.
+This solution counts triangles in an undirected graph. Each MPI process receives a distinct subset of edges. Forward adjacency lists are partitioned by contiguous vertex ranges; each process stores only its owned lists and exchanges endpoint lists needed by its local edges. The graph orientation is based on vertex degree and vertex ID, so every triangle is counted exactly once.
 
 ### Input format
 
@@ -59,7 +59,7 @@ The script generates these fixed-seed cases:
 
 Each case is checked with the sequential program and MPI using `P=1,2,4,8`. Tiny cases use repeated runs. Benchmark CSV files contain high-resolution wall time, MPI algorithm time, setup/broadcast/scatter/compute/reduce phases, both speedup types, efficiency, and triangle count. The suite also includes a dense `V=1500`, `E=1000000` case, using about 89% of the possible edges, to exercise the worst-case behavior of the algorithm.
 
-The timing is end-to-end program runtime measured by the shell script. Correctness output remains a single integer as required by the assignment.
+The timing is end-to-end program runtime measured by the shell script. Correctness output remains a single integer as required by the assignment. The `degree=0` phase field is retained for CSV compatibility; degree data is included in setup.
 
 ### Analyze results and create plots
 
@@ -85,3 +85,5 @@ On the RCE cluster, load the OpenMPI module before building and running:
 ```bash
 module load hpcx-2.7.0/hpcx-ompi
 ```
+
+The Slurm run on 2026-09-04 verified all six cases at `P=1,2,4,8`: PDF sample `2`, edge case `1`, K4 `4`, medium `1284`, large `1300`, and dense `395056429`. The latest benchmark is `results/benchmark_20260904_201321.csv`.

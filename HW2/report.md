@@ -54,7 +54,7 @@ The benchmark uses `generate_data.cpp` with fixed seeds 42 through 47 for powers
 
 ### Problem and implementation
 
-Q4 counts triangles without double counting. The sequential and MPI programs orient every edge from the lower-degree endpoint to the higher-degree endpoint, breaking degree ties by vertex ID. Triangle counts are obtained by intersecting oriented neighbor lists. MPI broadcasts the degree and oriented adjacency data, scatters distinct edges across ranks, computes local intersections, and sums the local counts with `MPI_Reduce`.
+Q4 counts triangles without double counting. The sequential and MPI programs orient every edge from the lower-degree endpoint to the higher-degree endpoint, breaking degree ties by vertex ID. Triangle counts are obtained by intersecting oriented neighbor lists. MPI broadcasts degrees, scatters distinct edges, partitions forward adjacency lists by vertex range, exchanges only required endpoint lists, and sums local counts with `MPI_Reduce`.
 
 ### Correctness and results
 
@@ -71,20 +71,20 @@ The benchmark contains 24 rows for six graphs, with consistent triangle counts a
 
 | Graph | Sequential (s) | Best wall MPI (P, s) | Wall speed-up | Best algorithm speed-up |
 | --- | ---: | ---: | ---: | ---: |
-| PDF sample | 0.015746 | 1, 0.332328 | 0.047 | 4.448 |
-| Edge case | 0.013517 | 1, 0.333538 | 0.041 | 14.119 |
-| Small K4 | 0.015532 | 1, 0.335448 | 0.046 | 5.769 |
-| Medium | 0.016707 | 1, 0.328635 | 0.051 | 5.158 |
-| Large maximum | 0.579336 | 2, 0.770264 | 0.752 | 1.373 |
-| Dense | 3.059672 | 8, 1.365551 | 2.241 | 3.057 |
+| PDF sample | 0.002632 | 1, 0.166709 | 0.016 | 63.226 |
+| Edge case | 0.002616 | 1, 0.155513 | 0.017 | 55.424 |
+| Small K4 | 0.002711 | 1, 0.158275 | 0.017 | 70.848 |
+| Medium | 0.004025 | 1, 0.162123 | 0.025 | 2.542 |
+| Large maximum | 0.308330 | 4, 0.568366 | 0.542 | 1.112 |
+| Dense | 4.134629 | 8, 1.003551 | 4.120 | 6.313 |
 
 ### Communication and scalability
 
-Small graphs are dominated by MPI startup, so their wall speed-up is below 1. The dense graph benefits from P=8 because its local intersection work is large enough to offset communication, reaching 2.241 wall speed-up and 3.057 algorithm-only speed-up. For `large_max`, the P=8 run spent about 0.510 seconds in setup/I/O and initial broadcast, while local compute was only about 0.0005 seconds. The current full adjacency broadcast simplifies intersections but uses more memory and communication than a design that exchanges only required neighbor data.
+Small graphs are dominated by MPI startup, so their wall speed-up is below 1. The dense graph benefits from P=8 because its local intersection work is large enough to offset communication, reaching 4.120 wall speed-up and 6.313 algorithm-only speed-up. For `large_max`, P=4 was fastest end to end at 0.568 seconds, while P=8 achieved the best algorithm-only speed-up of 1.112. The corrected implementation partitions forward adjacency storage and exchanges only requested endpoint lists.
 
 ### Reproducibility
 
-`generate_graph.cpp` generates distinct undirected edges with fixed seeds 42, 43, 44, 45, and 46. The programs use `mpicxx -O2 -std=c++17 -Wall -Wextra -pedantic` and `mpirun --bind-to none --oversubscribe -np P`. The benchmark records setup, degree broadcast, adjacency broadcast, edge scatter, local compute, reduction, wall time, speed-up, efficiency, and triangle count. Plots are in `Q4/results/`.
+`generate_graph.cpp` generates distinct undirected edges with fixed seeds 42, 43, 44, 45, and 46. The 2026-09-04 Slurm benchmark verified all six graphs at P=1,2,4,8, producing 24 consistent results. The programs use `mpicxx -O2 -std=c++17 -Wall -Wextra -pedantic` and `mpirun --bind-to none -np P`. CSV data, analysis, and plots are in `Q4/results/`.
 
 ## Q8: Large-Scale Weather and Environmental Data Analytics
 
