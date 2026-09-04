@@ -1,203 +1,238 @@
-#include<bits/stdc++.h>
-#include<mpi.h>
-#define fast ios_base::sync_with_stdio(false);cin.tie(NULL);cout.tie(NULL)
-#define pb push_back
-#define ll long long
-#define inf 0x7fffffff
-#define mod 998244353
-#define N 100010
-#define pp pair<ll,ll>
-#define yes cout<<"YES"<<endl
-#define no cout<<"NO"<<endl
-#define lcm(a,b) ((a*b)/(__gcd(a,b)))
-#define all(s) s.begin(), s.end()
-#define st(s) sort(all(s))
-#define loop(i,n) for(ll i=0; i<n; i++)
-using namespace std;
+#include <mpi.h>
 
-ll count_common(const vector<int> &a, const vector<int> &b) {
-    ll common = 0;
-    size_t i = 0, j = 0;
-    while (i < a.size() && j < b.size()) {
-        if (a[i] == b[j]) {
-            common++;
-            i++;
-            j++;
-        } else if (a[i] < b[j]) {
-            i++;
-        } else {
-            j++;
-        }
-    }
-    return common;
+#include <algorithm>
+#include <fstream>
+#include <iostream>
+#include <numeric>
+#include <unordered_map>
+#include <vector>
+
+using namespace std;
+using ll = long long;
+
+static bool forward_edge(int u, int v, const vector<int>& degree) {
+    return degree[u] < degree[v] || (degree[u] == degree[v] && u < v);
 }
 
-int main(int argc, char *argv[]) {
+static ll count_common(const vector<int>& a, const vector<int>& b) {
+    ll count = 0;
+    size_t i = 0;
+    size_t j = 0;
+    while (i < a.size() && j < b.size()) {
+        if (a[i] == b[j]) { ++count; ++i; ++j; }
+        else if (a[i] < b[j]) ++i;
+        else ++j;
+    }
+    return count;
+}
+
+static vector<int> prefix_displacements(const vector<int>& counts) {
+    vector<int> displacements(counts.size(), 0);
+    for (size_t i = 1; i < counts.size(); ++i) {
+        displacements[i] = displacements[i - 1] + counts[i - 1];
+    }
+    return displacements;
+}
+
+static int owner_of(int vertex, int vertices, int processes) {
+    return min(processes - 1, vertex * processes / vertices);
+}
+
+int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
-    fast;
-    int rank, size;
-
+    int rank = 0;
+    int processes = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    double setup_start = MPI_Wtime();
+    MPI_Comm_size(MPI_COMM_WORLD, &processes);
 
     if (argc != 2) {
-        if (rank == 0) {
-            cout << "You need to provide exactly 1 argument: the filename." << endl;
-        }
+        if (rank == 0) cout << "Usage: " << argv[0] << " <filename>\n";
         MPI_Finalize();
         return 1;
     }
 
-    string filename = argv[1];
-    int v, e;
+    double setup_start = MPI_Wtime();
+    int vertices = 0;
+    int edge_count = 0;
     vector<int> degree;
-    vector<pair<int, int>> edges;
-
-    if (rank == 0) {
-        ifstream infile(filename);
-        if (!infile) {
-            cout << "Error opening file: " << filename << endl;
-
-            MPI_Abort(MPI_COMM_WORLD, 1);
-
-        }
-        infile >> v >> e;
-        degree.resize(v, 0);
-        edges.resize(e);
-        for (int i = 0; i < e; i++) {
-            int u, w;
-            infile >> u >> w;
-            edges[i] = {u, w};
-            degree[u]++;
-            degree[w]++;
-        }
-        infile.close();
-    }
-
-    MPI_Bcast(&v, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&e, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    double setup_time = MPI_Wtime() - setup_start;
-
-    if (rank != 0) {
-        degree.resize(v);
-    }
-
-    double degree_start = MPI_Wtime();
-    MPI_Bcast(degree.data(), v, MPI_INT, 0, MPI_COMM_WORLD );
-    double degree_time = MPI_Wtime() - degree_start;
-
-    vector<vector<int>> adj;
-    if (rank == 0) {
-        adj.resize(v);
-        for (auto e : edges) {
-            int u = e.first, v = e.second;
-            if (degree[u] < degree[v] || (degree[u] == degree[v] && u < v)) {
-                adj[u].pb(v);
-            } else {
-                adj[v].pb(u);
-            }
-        }
-        for (int i = 0; i < v; i++) {
-            sort(all(adj[i]));
-        }
-    }
-
-    vector<int> adj_size(v);
-    if (rank == 0) {
-        for (int i = 0; i < v; i++) {
-            adj_size[i] = adj[i].size();
-        }
-    }
-
-    double adjacency_start = MPI_Wtime();
-    MPI_Bcast(adj_size.data(), v, MPI_INT, 0, MPI_COMM_WORLD);
-
-    vector<int> flat_adj;
-    vector<int> adj_start(v + 1, 0);
-    if (rank == 0) {
-        for (int i = 0; i < v; i++) {
-            adj_start[i + 1] = adj_start[i] + adj_size[i];
-            for (int x : adj[i]) {
-                flat_adj.pb(x);
-            }
-        }
-    }
-
-    MPI_Bcast(adj_start.data(), v + 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    int total_adj_size = 0;
-
-    if (rank == 0) {
-        total_adj_size = flat_adj.size();
-    }
-
-    MPI_Bcast(&total_adj_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    if (rank != 0) {
-        flat_adj.resize(total_adj_size);
-    }
-
-    MPI_Bcast(flat_adj.data(), total_adj_size, MPI_INT, 0, MPI_COMM_WORLD);
-    double adjacency_time = MPI_Wtime() - adjacency_start;
-
-    if (rank != 0) {
-        adj.resize(v);
-        for (int i = 0; i < v; i++) {
-            for (int j = adj_start[i]; j < adj_start[i + 1]; j++) {
-                adj[i].pb(flat_adj[j]);
-            }
-        }
-    }
-
-    vector<int> send_counts(size);
-    vector<int> displacements(size);
-    int base = e / size;
-    int rem = e % size;
-    for (int i = 0; i < size; i++) {
-        send_counts[i] = base;
-        if (i < rem)
-            send_counts[i]++;
-    }
-    displacements[0] = 0;
-    for (int i = 1; i < size; i++) {
-        displacements[i] = displacements[i - 1] + send_counts[i - 1];
-    }
-
     vector<int> flat_edges;
     if (rank == 0) {
-        flat_edges.resize(2 * e);
-        for (int i = 0; i < e; i++) {
-            flat_edges[2 * i] = edges[i].first;
-            flat_edges[2 * i + 1] = edges[i].second;
+        ifstream input(argv[1]);
+        if (!(input >> vertices >> edge_count) || vertices < 1 || edge_count < 0) {
+            cout << "Error: invalid graph header.\n";
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        degree.assign(vertices, 0);
+        flat_edges.resize(2 * edge_count);
+        for (int i = 0; i < edge_count; ++i) {
+            int u = 0;
+            int v = 0;
+            if (!(input >> u >> v) || u < 0 || v < 0 || u >= vertices || v >= vertices || u == v) {
+                cout << "Error: invalid edge at index " << i << ".\n";
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
+            flat_edges[2 * i] = u;
+            flat_edges[2 * i + 1] = v;
+            ++degree[u];
+            ++degree[v];
         }
     }
 
-    vector<int> mpi_counts(size);
-    vector<int> mpi_displacements(size);
-    for (int i = 0; i < size; i++) {
-        mpi_counts[i] = send_counts[i] * 2;
-        mpi_displacements[i] = displacements[i] * 2;
+    MPI_Bcast(&vertices, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&edge_count, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (rank != 0) degree.resize(vertices);
+    MPI_Bcast(degree.data(), vertices, MPI_INT, 0, MPI_COMM_WORLD);
+    double setup_time = MPI_Wtime() - setup_start;
+
+    vector<int> edge_counts(processes, edge_count / processes);
+    for (int p = 0; p < edge_count % processes; ++p) ++edge_counts[p];
+    vector<int> edge_displacements = prefix_displacements(edge_counts);
+    vector<int> edge_counts_x2(processes);
+    vector<int> edge_displacements_x2(processes);
+    for (int p = 0; p < processes; ++p) {
+        edge_counts_x2[p] = 2 * edge_counts[p];
+        edge_displacements_x2[p] = 2 * edge_displacements[p];
     }
 
-    vector<int> local_edges(send_counts[rank] * 2);
-
+    vector<int> local_edges(edge_counts_x2[rank]);
     double scatter_start = MPI_Wtime();
-    MPI_Scatterv(flat_edges.data(), mpi_counts.data(), mpi_displacements.data(), MPI_INT, local_edges.data(), mpi_counts[rank], MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatterv(rank == 0 ? flat_edges.data() : nullptr, edge_counts_x2.data(), edge_displacements_x2.data(), MPI_INT,
+                 local_edges.data(), edge_counts_x2[rank], MPI_INT, 0, MPI_COMM_WORLD);
     double scatter_time = MPI_Wtime() - scatter_start;
+
+    vector<vector<int>> root_adjacency;
+    vector<int> all_adjacency_sizes;
+    if (rank == 0) {
+        root_adjacency.resize(vertices);
+        for (int i = 0; i < edge_count; ++i) {
+            int u = flat_edges[2 * i];
+            int v = flat_edges[2 * i + 1];
+            if (forward_edge(u, v, degree)) root_adjacency[u].push_back(v);
+            else root_adjacency[v].push_back(u);
+        }
+        all_adjacency_sizes.resize(vertices);
+        for (int vertex = 0; vertex < vertices; ++vertex) {
+            sort(root_adjacency[vertex].begin(), root_adjacency[vertex].end());
+            all_adjacency_sizes[vertex] = static_cast<int>(root_adjacency[vertex].size());
+        }
+    }
+
+    vector<int> vertex_counts(processes);
+    vector<int> vertex_displacements(processes);
+    for (int p = 0; p < processes; ++p) {
+        vertex_displacements[p] = vertices * p / processes;
+        vertex_counts[p] = vertices * (p + 1) / processes - vertex_displacements[p];
+    }
+    int first_vertex = vertex_displacements[rank];
+    int local_vertex_count = vertex_counts[rank];
+    vector<int> local_sizes(local_vertex_count);
+
+    double adjacency_start = MPI_Wtime();
+    MPI_Scatterv(rank == 0 ? all_adjacency_sizes.data() : nullptr,
+                 vertex_counts.data(), vertex_displacements.data(), MPI_INT,
+                 local_sizes.data(), local_vertex_count, MPI_INT, 0, MPI_COMM_WORLD);
+
+    vector<int> adjacency_counts(processes, 0);
+    vector<int> adjacency_displacements;
+    vector<int> all_flat_adjacency;
+    if (rank == 0) {
+        for (int p = 0; p < processes; ++p) {
+            int begin = vertex_displacements[p];
+            int end = begin + vertex_counts[p];
+            for (int vertex = begin; vertex < end; ++vertex) adjacency_counts[p] += all_adjacency_sizes[vertex];
+        }
+        adjacency_displacements = prefix_displacements(adjacency_counts);
+        all_flat_adjacency.reserve(edge_count);
+        for (const auto& list : root_adjacency) all_flat_adjacency.insert(all_flat_adjacency.end(), list.begin(), list.end());
+    }
+    MPI_Bcast(adjacency_counts.data(), processes, MPI_INT, 0, MPI_COMM_WORLD);
+    if (rank != 0) adjacency_displacements = prefix_displacements(adjacency_counts);
+    int local_adjacency_count = accumulate(local_sizes.begin(), local_sizes.end(), 0);
+    vector<int> local_flat_adjacency(local_adjacency_count);
+    MPI_Scatterv(rank == 0 ? all_flat_adjacency.data() : nullptr,
+                 adjacency_counts.data(), adjacency_displacements.data(), MPI_INT,
+                 local_flat_adjacency.data(), local_adjacency_count, MPI_INT, 0, MPI_COMM_WORLD);
+
+    unordered_map<int, vector<int>> owned_adjacency;
+    int local_offset = 0;
+    for (int vertex = first_vertex; vertex < first_vertex + local_vertex_count; ++vertex) {
+        int length = local_sizes[vertex - first_vertex];
+        owned_adjacency[vertex] = vector<int>(local_flat_adjacency.begin() + local_offset,
+                                              local_flat_adjacency.begin() + local_offset + length);
+        local_offset += length;
+    }
+
+    vector<int> needed_vertices;
+    for (int i = 0; i < edge_counts[rank]; ++i) {
+        needed_vertices.push_back(local_edges[2 * i]);
+        needed_vertices.push_back(local_edges[2 * i + 1]);
+    }
+    sort(needed_vertices.begin(), needed_vertices.end());
+    needed_vertices.erase(unique(needed_vertices.begin(), needed_vertices.end()), needed_vertices.end());
+
+    vector<int> request_counts(processes, 0);
+    for (int vertex : needed_vertices) ++request_counts[owner_of(vertex, vertices, processes)];
+    vector<int> request_displacements = prefix_displacements(request_counts);
+    vector<int> requests(needed_vertices.size());
+    vector<int> request_offsets = request_displacements;
+    for (int vertex : needed_vertices) {
+        int owner = owner_of(vertex, vertices, processes);
+        requests[request_offsets[owner]++] = vertex;
+    }
+
+    vector<int> incoming_request_counts(processes);
+    MPI_Alltoall(request_counts.data(), 1, MPI_INT, incoming_request_counts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+    vector<int> incoming_request_displacements = prefix_displacements(incoming_request_counts);
+    int incoming_total = accumulate(incoming_request_counts.begin(), incoming_request_counts.end(), 0);
+    vector<int> incoming_requests(incoming_total);
+    MPI_Alltoallv(requests.data(), request_counts.data(), request_displacements.data(), MPI_INT,
+                  incoming_requests.data(), incoming_request_counts.data(), incoming_request_displacements.data(), MPI_INT,
+                  MPI_COMM_WORLD);
+
+    vector<int> response_counts(processes, 0);
+    for (int p = 0; p < processes; ++p) {
+        for (int i = incoming_request_displacements[p]; i < incoming_request_displacements[p] + incoming_request_counts[p]; ++i)
+            response_counts[p] += 1 + static_cast<int>(owned_adjacency[incoming_requests[i]].size());
+    }
+    vector<int> response_displacements = prefix_displacements(response_counts);
+    vector<int> responses(accumulate(response_counts.begin(), response_counts.end(), 0));
+    for (int p = 0; p < processes; ++p) {
+        int position = response_displacements[p];
+        for (int i = incoming_request_displacements[p]; i < incoming_request_displacements[p] + incoming_request_counts[p]; ++i) {
+            const auto& list = owned_adjacency[incoming_requests[i]];
+            responses[position++] = static_cast<int>(list.size());
+            copy(list.begin(), list.end(), responses.begin() + position);
+            position += static_cast<int>(list.size());
+        }
+    }
+
+    vector<int> returned_counts(processes);
+    MPI_Alltoall(response_counts.data(), 1, MPI_INT, returned_counts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+    vector<int> returned_displacements = prefix_displacements(returned_counts);
+    int returned_total = accumulate(returned_counts.begin(), returned_counts.end(), 0);
+    vector<int> returned(returned_total);
+    MPI_Alltoallv(responses.data(), response_counts.data(), response_displacements.data(), MPI_INT,
+                  returned.data(), returned_counts.data(), returned_displacements.data(), MPI_INT, MPI_COMM_WORLD);
+
+    unordered_map<int, vector<int>> adjacency;
+    for (int p = 0; p < processes; ++p) {
+        int position = returned_displacements[p];
+        for (int i = request_displacements[p]; i < request_displacements[p] + request_counts[p]; ++i) {
+            int vertex = requests[i];
+            int length = returned[position++];
+            adjacency[vertex] = vector<int>(returned.begin() + position, returned.begin() + position + length);
+            position += length;
+        }
+    }
+    double adjacency_time = MPI_Wtime() - adjacency_start;
 
     double compute_start = MPI_Wtime();
     ll local_triangles = 0;
-    for (int i = 0; i < send_counts[rank]; i++) {
+    for (int i = 0; i < edge_counts[rank]; ++i) {
         int u = local_edges[2 * i];
-        int w = local_edges[2 * i + 1];
-        if (degree[u] < degree[w] || (degree[u] == degree[w] && u < w)) {
-            local_triangles += count_common(adj[u], adj[w]);
-        } else {
-            local_triangles += count_common(adj[w], adj[u]);
-        }
+        int v = local_edges[2 * i + 1];
+        if (forward_edge(u, v, degree)) local_triangles += count_common(adjacency[u], adjacency[v]);
+        else local_triangles += count_common(adjacency[v], adjacency[u]);
     }
     double compute_time = MPI_Wtime() - compute_start;
 
@@ -206,35 +241,25 @@ int main(int argc, char *argv[]) {
     MPI_Reduce(&local_triangles, &global_triangles, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
     double reduce_time = MPI_Wtime() - reduce_start;
 
-    double maximum_setup_time = 0;
-    double maximum_degree_time = 0;
-    double maximum_adjacency_time = 0;
-    double maximum_scatter_time = 0;
-    double maximum_compute_time = 0;
-    double maximum_reduce_time = 0;
-
-    MPI_Reduce(&setup_time, &maximum_setup_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&degree_time, &maximum_degree_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&adjacency_time, &maximum_adjacency_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&scatter_time, &maximum_scatter_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&compute_time, &maximum_compute_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&reduce_time, &maximum_reduce_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    double max_setup = 0.0, max_scatter = 0.0, max_adjacency = 0.0, max_compute = 0.0, max_reduce = 0.0;
+    MPI_Reduce(&setup_time, &max_setup, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&scatter_time, &max_scatter, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&adjacency_time, &max_adjacency, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&compute_time, &max_compute, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&reduce_time, &max_reduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
     if (rank == 0) {
-        cout << global_triangles << endl;
-        double algorithm_time = maximum_setup_time + maximum_degree_time
-            + maximum_adjacency_time + maximum_scatter_time
-            + maximum_compute_time + maximum_reduce_time;
-        cerr << "MPI_PHASES setup=" << maximum_setup_time
-             << " degree=" << maximum_degree_time
-             << " adjacency=" << maximum_adjacency_time
-             << " scatter=" << maximum_scatter_time
-             << " compute=" << maximum_compute_time
-             << " reduce=" << maximum_reduce_time
-             << " algo=" << algorithm_time << endl;
+        cout << global_triangles << '\n';
+        double algorithm_time = max_setup + max_scatter + max_adjacency + max_compute + max_reduce;
+        cerr << "MPI_PHASES setup=" << max_setup
+             << " degree=0"
+             << " adjacency=" << max_adjacency
+             << " scatter=" << max_scatter
+             << " compute=" << max_compute
+             << " reduce=" << max_reduce
+             << " algo=" << algorithm_time << '\n';
     }
 
     MPI_Finalize();
-
     return 0;
 }
